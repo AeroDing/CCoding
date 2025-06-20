@@ -1,6 +1,6 @@
 {
-  "name": "coding-helpers",
-  "displayName": "Coding Helpers",
+  "name": "CCoding",
+  "displayName": "CCoding",
   "description": "A comprehensive coding assistant with function lists, bookmarks, quick navigation, symbol pinning, todo lists, timeline, and keyword search for Vue/React development",
   "version": "0.1.0",
   "engines": {
@@ -12,130 +12,131 @@
   "activationEvents": [
     "*"
   ],
+  "icon": "icon.png",
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "codingHelper.showFunctionList",
+        "command": "CCoding.showFunctionList",
         "title": "Show Function List",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.addBookmark",
+        "command": "CCoding.addBookmark",
         "title": "Add Bookmark",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.showBookmarks",
+        "command": "CCoding.showBookmarks",
         "title": "Show Bookmarks",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.quickJump",
+        "command": "CCoding.quickJump",
         "title": "Quick Jump",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.pinSymbol",
+        "command": "CCoding.pinSymbol",
         "title": "Pin Symbol",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.showTodos",
+        "command": "CCoding.showTodos",
         "title": "Show Todo List",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.showTimeline",
+        "command": "CCoding.showTimeline",
         "title": "Show Timeline",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.searchKeywords",
+        "command": "CCoding.searchKeywords",
         "title": "Search Keywords",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.addBookmarkFromContext",
+        "command": "CCoding.addBookmarkFromContext",
         "title": "Add to Bookmarks",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.editBookmark",
+        "command": "CCoding.editBookmark",
         "title": "Edit Bookmark",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.removeBookmark",
+        "command": "CCoding.removeBookmark",
         "title": "Remove Bookmark",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.addBookmarkFromEditor",
+        "command": "CCoding.addBookmarkFromEditor",
         "title": "添加书签",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.pinSymbolFromEditor",
+        "command": "CCoding.pinSymbolFromEditor",
         "title": "置顶符号",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.unpinSymbol",
+        "command": "CCoding.unpinSymbol",
         "title": "移除置顶",
-        "category": "Coding Helpers"
+        "category": "CCoding"
       },
       {
-        "command": "codingHelper.clearAllPinnedSymbols",
+        "command": "CCoding.clearAllPinnedSymbols",
         "title": "清空所有置顶符号",
-        "category": "Coding Helpers",
+        "category": "CCoding",
         "icon": "$(clear-all)"
       }
     ],
     "keybindings": [
       {
-        "command": "codingHelper.showFunctionList",
+        "command": "CCoding.showFunctionList",
         "key": "ctrl+shift+f",
         "mac": "cmd+shift+f"
       },
       {
-        "command": "codingHelper.addBookmark",
+        "command": "CCoding.addBookmark",
         "key": "ctrl+shift+b",
         "mac": "cmd+shift+b"
       },
       {
-        "command": "codingHelper.quickJump",
+        "command": "CCoding.quickJump",
         "key": "ctrl+shift+j",
         "mac": "cmd+shift+j"
       }
     ],
     "views": {
-      "codingHelper": [
+      "CCoding": [
         {
-          "id": "codingHelper.tabSwitcher",
+          "id": "CCoding.tabSwitcher",
           "name": "控制面板",
           "type": "webview",
           "initialSize": 150,
           "when": "true"
         },
         {
-          "id": "codingHelper.functionList",
+          "id": "CCoding.functionList",
           "name": "函数列表",
           "when": "resourceExtname == .js || resourceExtname == .ts || resourceExtname == .vue || resourceExtname == .jsx || resourceExtname == .tsx",
           "visibility": "visible"
         },
         {
-          "id": "codingHelper.bookmarks",
+          "id": "CCoding.bookmarks",
           "name": "书签",
           "visibility": "collapsed"
         },
         {
-          "id": "codingHelper.todos",
+          "id": "CCoding.todos",
           "name": "待办事项",
           "visibility": "collapsed"
         },
         {
-          "id": "codingHelper.pinnedSymbols",
+          "id": "CCoding.pinnedSymbols",
           "name": "置顶符号",
           "visibility": "collapsed"
         }
@@ -144,8 +145,8 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "codingHelper",
-          "title": "Coding Helpers",
+          "id": "CCoding",
+          "title": "CCoding",
           "icon": "src/images/logo.svg"
         }
       ]
@@ -153,63 +154,65 @@
     "menus": {
       "explorer/context": [
         {
-          "command": "codingHelper.addBookmarkFromContext",
+          "command": "CCoding.addBookmarkFromContext",
           "group": "navigation"
         }
       ],
       "editor/context": [
         {
-          "submenu": "codingHelper.editorSubmenu",
+          "submenu": "CCoding.editorSubmenu",
           "when": "editorTextFocus",
           "group": "navigation@1"
         }
       ],
-      "codingHelper.editorSubmenu": [
+      "CCoding.editorSubmenu": [
         {
-          "command": "codingHelper.addBookmarkFromEditor",
+          "command": "CCoding.addBookmarkFromEditor",
           "when": "editorTextFocus"
         },
         {
-          "command": "codingHelper.pinSymbolFromEditor",
+          "command": "CCoding.pinSymbolFromEditor",
           "when": "editorTextFocus"
         }
       ],
       "view/item/context": [
         {
-          "command": "codingHelper.editBookmark",
-          "when": "view == codingHelper.bookmarks && viewItem == bookmark",
+          "command": "CCoding.editBookmark",
+          "when": "view == CCoding.bookmarks && viewItem == bookmark",
           "group": "inline"
         },
         {
-          "command": "codingHelper.removeBookmark",
-          "when": "view == codingHelper.bookmarks && viewItem == bookmark",
+          "command": "CCoding.removeBookmark",
+          "when": "view == CCoding.bookmarks && viewItem == bookmark",
           "group": "inline"
         },
         {
-          "command": "codingHelper.unpinSymbol",
-          "when": "view == codingHelper.pinnedSymbols && viewItem == pinnedSymbol",
+          "command": "CCoding.unpinSymbol",
+          "when": "view == CCoding.pinnedSymbols && viewItem == pinnedSymbol",
           "group": "inline"
         }
       ],
       "view/title": [
         {
-          "command": "codingHelper.clearAllPinnedSymbols",
-          "when": "view == codingHelper.pinnedSymbols && codingHelper.hasPinnedSymbols",
+          "command": "CCoding.clearAllPinnedSymbols",
+          "when": "view == CCoding.pinnedSymbols && CCoding.hasPinnedSymbols",
           "group": "navigation"
         }
       ]
     },
     "submenus": [
       {
-        "id": "codingHelper.editorSubmenu",
-        "label": "Coding Helpers"
+        "id": "CCoding.editorSubmenu",
+        "label": "CCoding"
       }
     ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "bumpp": "bumpp",
+    "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/node": "^16.18.126",
@@ -219,7 +222,7 @@
   },
   "keywords": [
     "coding",
-    "helper",
+    "CCoding",
     "vue",
     "react",
     "function",
@@ -227,7 +230,7 @@
   ],
   "author": "Pxin Ding",
   "license": "MIT",
-  "publisher": "coding-helper-dev",
+  "publisher": "AeroDing",
   "repository": {
     "type": "git",
     "url": "https://github.com/example/coding-helper"
