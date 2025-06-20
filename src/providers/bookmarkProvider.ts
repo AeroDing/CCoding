@@ -56,10 +56,25 @@ export class BookmarkProvider implements vscode.TreeDataProvider<BookmarkItem> {
      * @description 当Tab为'current'时只返回当前文件的书签，为'all'时返回所有书签
      */
     private getFilteredBookmarks(): Bookmark[] {
+        let bookmarks: Bookmark[] = [];
+        
+        // 根据当前tab获取基础数据
         if (this.currentTab === 'current') {
-            return this.getCurrentFileBookmarks();
+            bookmarks = this.getCurrentFileBookmarks();
+        } else {
+            bookmarks = this.bookmarks;
         }
-        return this.bookmarks;
+        
+        // 应用搜索过滤
+        if (this.searchQuery) {
+            bookmarks = bookmarks.filter(bookmark => {
+                const fileName = vscode.workspace.asRelativePath(bookmark.uri);
+                return bookmark.label.toLowerCase().includes(this.searchQuery) ||
+                       fileName.toLowerCase().includes(this.searchQuery);
+            });
+        }
+        
+        return bookmarks;
     }
 
     /**
@@ -283,54 +298,31 @@ export class BookmarkProvider implements vscode.TreeDataProvider<BookmarkItem> {
     }
 
     /**
+     * 当前搜索状态
+     */
+    private searchQuery: string = '';
+    private searchScope: 'current' | 'all' = 'current';
+
+    /**
      * 搜索书签
      * @param query - 搜索查询
      * @param scope - 搜索范围：'current' 当前文件 | 'all' 所有文件
-     * @returns 匹配的书签项数组
-     * @description 在书签标签和文件名中搜索匹配的内容
+     * @description 在书签标签和文件名中搜索匹配的内容，结果直接在树视图中过滤显示
      */
     async searchBookmarks(query: string, scope: 'current' | 'all'): Promise<void> {
-        if (!query || !query.trim()) {
-            vscode.window.showInformationMessage('请输入搜索关键字');
-            return;
-        }
-
-        const searchQuery = query.toLowerCase().trim();
-        const targetBookmarks = scope === 'current' ? this.getCurrentFileBookmarks() : this.bookmarks;
+        this.searchQuery = query ? query.toLowerCase().trim() : '';
+        this.searchScope = scope;
         
-        const results = targetBookmarks.filter(bookmark => {
-            const fileName = vscode.workspace.asRelativePath(bookmark.uri);
-            return bookmark.label.toLowerCase().includes(searchQuery) ||
-                   fileName.toLowerCase().includes(searchQuery);
-        });
+        // 直接刷新树视图，使用新的搜索条件
+        this.refresh();
+    }
 
-        if (results.length === 0) {
-            const scopeText = scope === 'current' ? '当前文件' : '项目';
-            vscode.window.showInformationMessage(`在${scopeText}的书签中未找到 "${query}"`);
-            return;
-        }
-
-        // 显示搜索结果选择器
-        const items = results.map(bookmark => {
-            const fileName = vscode.workspace.asRelativePath(bookmark.uri);
-            return {
-                label: bookmark.label,
-                description: `${fileName}:${bookmark.range.start.line + 1}`,
-                detail: `书签 - 第 ${bookmark.range.start.line + 1} 行`,
-                bookmark: bookmark
-            };
-        });
-
-        const selected = await vscode.window.showQuickPick(items, {
-            placeHolder: `找到 ${results.length} 个书签结果`
-        });
-
-        if (selected) {
-            // 跳转到选中的书签
-            await vscode.commands.executeCommand('vscode.open', selected.bookmark.uri, {
-                selection: selected.bookmark.range
-            });
-        }
+    /**
+     * 清除搜索状态
+     */
+    clearSearch(): void {
+        this.searchQuery = '';
+        this.refresh();
     }
 }
 

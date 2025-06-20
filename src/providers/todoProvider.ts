@@ -92,10 +92,25 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
      * @description 当Tab为'current'时只返回当前文件的待办事项，为'all'时返回所有待办事项
      */
     private getFilteredTodos(): TodoItem[] {
+        let todos: TodoItem[] = [];
+        
+        // 根据当前tab获取基础数据
         if (this.currentTab === 'current') {
-            return this.getCurrentFileTodos();
+            todos = this.getCurrentFileTodos();
+        } else {
+            todos = this.todos;
         }
-        return this.todos;
+        
+        // 应用搜索过滤
+        if (this.searchQuery) {
+            todos = todos.filter(todo => {
+                return todo.text.toLowerCase().includes(this.searchQuery) ||
+                       todo.file.toLowerCase().includes(this.searchQuery) ||
+                       todo.type.toLowerCase().includes(this.searchQuery);
+            });
+        }
+        
+        return todos;
     }
 
     /**
@@ -362,55 +377,31 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
     }
 
     /**
+     * 当前搜索状态
+     */
+    private searchQuery: string = '';
+    private searchScope: 'current' | 'all' = 'current';
+
+    /**
      * 搜索待办事项
      * @param query - 搜索查询
      * @param scope - 搜索范围：'current' 当前文件 | 'all' 所有文件
-     * @returns 匹配的待办事项
-     * @description 在待办事项文本和文件名中搜索匹配的内容
+     * @description 在待办事项文本和文件名中搜索匹配的内容，结果直接在树视图中过滤显示
      */
     async searchTodos(query: string, scope: 'current' | 'all'): Promise<void> {
-        if (!query || !query.trim()) {
-            vscode.window.showInformationMessage('请输入搜索关键字');
-            return;
-        }
-
-        const searchQuery = query.toLowerCase().trim();
-        const targetTodos = scope === 'current' ? this.getCurrentFileTodos() : this.todos;
+        this.searchQuery = query ? query.toLowerCase().trim() : '';
+        this.searchScope = scope;
         
-        const results = targetTodos.filter(todo => {
-            return todo.text.toLowerCase().includes(searchQuery) ||
-                   todo.file.toLowerCase().includes(searchQuery) ||
-                   todo.type.toLowerCase().includes(searchQuery);
-        });
+        // 直接刷新树视图，使用新的搜索条件
+        this.refresh();
+    }
 
-        if (results.length === 0) {
-            const scopeText = scope === 'current' ? '当前文件' : '项目';
-            vscode.window.showInformationMessage(`在${scopeText}的待办事项中未找到 "${query}"`);
-            return;
-        }
-
-        // 显示搜索结果选择器
-        const items = results.map(todo => ({
-            label: `[${todo.type}] ${todo.text}`,
-            description: `${todo.file}:${todo.line + 1}`,
-            detail: `待办事项 - 第 ${todo.line + 1} 行`,
-            todo: todo
-        }));
-
-        const selected = await vscode.window.showQuickPick(items, {
-            placeHolder: `找到 ${results.length} 个待办事项结果`
-        });
-
-        if (selected && vscode.workspace.workspaceFolders) {
-            // 跳转到选中的待办事项
-            const filePath = vscode.Uri.file(vscode.workspace.workspaceFolders[0].uri.fsPath + '/' + selected.todo.file);
-            const document = await vscode.workspace.openTextDocument(filePath);
-            const editor = await vscode.window.showTextDocument(document);
-            
-            const position = new vscode.Position(selected.todo.line, selected.todo.column);
-            editor.selection = new vscode.Selection(position, position);
-            editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
-        }
+    /**
+     * 清除搜索状态
+     */
+    clearSearch(): void {
+        this.searchQuery = '';
+        this.refresh();
     }
 }
 

@@ -59,10 +59,27 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
      * @description 当Tab为'current'时只返回当前文件的置顶符号，为'all'时返回所有置顶符号
      */
     private getFilteredPinnedSymbols(): PinnedSymbol[] {
+        let symbols: PinnedSymbol[] = [];
+        
+        // 根据当前tab获取基础数据
         if (this.currentTab === 'current') {
-            return this.getCurrentFilePinnedSymbols();
+            symbols = this.getCurrentFilePinnedSymbols();
+        } else {
+            symbols = this.pinnedSymbols;
         }
-        return this.pinnedSymbols;
+        
+        // 应用搜索过滤
+        if (this.searchQuery) {
+            symbols = symbols.filter(symbol => {
+                const fileName = vscode.workspace.asRelativePath(symbol.uri);
+                const symbolTypeName = this.getSymbolTypeName(symbol.kind);
+                return symbol.name.toLowerCase().includes(this.searchQuery) ||
+                       fileName.toLowerCase().includes(this.searchQuery) ||
+                       symbolTypeName.toLowerCase().includes(this.searchQuery);
+            });
+        }
+        
+        return symbols;
     }
 
     /**
@@ -478,57 +495,31 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
     }
 
     /**
+     * 当前搜索状态
+     */
+    private searchQuery: string = '';
+    private searchScope: 'current' | 'all' = 'current';
+
+    /**
      * 搜索置顶符号
      * @param query - 搜索查询
      * @param scope - 搜索范围：'current' 当前文件 | 'all' 所有文件
-     * @returns 匹配的置顶符号
-     * @description 在置顶符号名称和文件名中搜索匹配的内容
+     * @description 在置顶符号名称、类型和文件名中搜索匹配的内容，结果直接在树视图中过滤显示
      */
     async searchPinnedSymbols(query: string, scope: 'current' | 'all'): Promise<void> {
-        if (!query || !query.trim()) {
-            vscode.window.showInformationMessage('请输入搜索关键字');
-            return;
-        }
-
-        const searchQuery = query.toLowerCase().trim();
-        const targetSymbols = scope === 'current' ? this.getCurrentFilePinnedSymbols() : this.pinnedSymbols;
+        this.searchQuery = query ? query.toLowerCase().trim() : '';
+        this.searchScope = scope;
         
-        const results = targetSymbols.filter(symbol => {
-            const fileName = vscode.workspace.asRelativePath(symbol.uri);
-            const symbolTypeName = this.getSymbolTypeName(symbol.kind);
-            return symbol.name.toLowerCase().includes(searchQuery) ||
-                   fileName.toLowerCase().includes(searchQuery) ||
-                   symbolTypeName.toLowerCase().includes(searchQuery);
-        });
+        // 直接刷新树视图，使用新的搜索条件
+        this.refresh();
+    }
 
-        if (results.length === 0) {
-            const scopeText = scope === 'current' ? '当前文件' : '项目';
-            vscode.window.showInformationMessage(`在${scopeText}的置顶符号中未找到 "${query}"`);
-            return;
-        }
-
-        // 显示搜索结果选择器
-        const items = results.map(symbol => {
-            const fileName = vscode.workspace.asRelativePath(symbol.uri);
-            const symbolTypeName = this.getSymbolTypeName(symbol.kind);
-            return {
-                label: symbol.name,
-                description: `${symbolTypeName} · ${fileName}:${symbol.range.start.line + 1}`,
-                detail: `置顶符号 - 第 ${symbol.range.start.line + 1} 行`,
-                symbol: symbol
-            };
-        });
-
-        const selected = await vscode.window.showQuickPick(items, {
-            placeHolder: `找到 ${results.length} 个置顶符号结果`
-        });
-
-        if (selected) {
-            // 跳转到选中的置顶符号
-            await vscode.commands.executeCommand('vscode.open', selected.symbol.uri, {
-                selection: selected.symbol.range
-            });
-        }
+    /**
+     * 清除搜索状态
+     */
+    clearSearch(): void {
+        this.searchQuery = '';
+        this.refresh();
     }
 
     /**

@@ -42,10 +42,15 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider(TabSwitcherProvider.viewType, tabSwitcherProvider)
     );
 
-    vscode.window.createTreeView('codingHelper.functionList', {
+    const functionListTreeView = vscode.window.createTreeView('codingHelper.functionList', {
         treeDataProvider: functionListProvider,
         showCollapseAll: true
     });
+
+    // 默认聚焦到控制面板
+    setTimeout(() => {
+        vscode.commands.executeCommand('codingHelper.tabSwitcher.focus');
+    }, 500);
 
     vscode.window.createTreeView('codingHelper.bookmarks', {
         treeDataProvider: bookmarkProvider,
@@ -93,6 +98,15 @@ export function activate(context: vscode.ExtensionContext) {
 
         vscode.commands.registerCommand('codingHelper.searchKeywords', () => {
             keywordSearchProvider.searchKeywords();
+        }),
+
+        vscode.commands.registerCommand('codingHelper.clearSearch', () => {
+            clearSearch(tabSwitcherProvider, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider);
+        }),
+
+        vscode.commands.registerCommand('codingHelper.testSearch', () => {
+            // 测试搜索功能，确保没有弹窗
+            performSearch('current', 'all', functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider, keywordSearchProvider, 'test');
         }),
 
         vscode.commands.registerCommand('codingHelper.addBookmarkFromContext', (uri: vscode.Uri) => {
@@ -211,9 +225,7 @@ function switchTab(
     todoProvider.refresh();
     pinnedSymbolProvider.refresh();
     
-    // 显示切换成功消息
-    const tabName = tab === 'current' ? '当前文件' : '整个项目';
-    vscode.window.showInformationMessage(`已切换到 ${tabName} 视图`);
+    // 静默切换，无需提示消息
 }
 
 /**
@@ -237,54 +249,58 @@ async function performSearch(
     keywordSearchProvider: KeywordSearchProvider,
     query?: string
 ) {
-    let searchInput = query;
-    
-    // 如果没有提供查询参数，则弹出输入框
-    if (!searchInput) {
-        const typeText = getSearchTypeText(searchType);
-        const scopeText = scope === 'current' ? '当前文件' : '整个项目';
-        searchInput = await vscode.window.showInputBox({
-            placeHolder: `在${scopeText}的${typeText}中搜索...`,
-            prompt: `请输入要搜索的关键字`,
-            value: searchQuery
-        });
+    // 如果query是undefined（从WebView来的搜索都会提供query，即使是空字符串）
+    if (query === undefined) {
+        return;
     }
 
-    if (searchInput !== undefined && searchInput !== null) {
+    const searchInput = query.trim();
+    
+    if (searchInput) {
         searchQuery = searchInput;
-        hasActiveSearch = searchQuery.length > 0;
+        hasActiveSearch = true;
         vscode.commands.executeCommand('setContext', 'codingHelper.hasActiveSearch', hasActiveSearch);
         
-        if (searchQuery) {
-            // 根据搜索类型执行相应的搜索操作
-            try {
-                switch (searchType) {
-                    case 'bookmarks':
-                        await bookmarkProvider.searchBookmarks(searchQuery, scope);
-                        break;
-                    case 'todos':
-                        await todoProvider.searchTodos(searchQuery, scope);
-                        break;
-                    case 'pinnedSymbols':
-                        await pinnedSymbolProvider.searchPinnedSymbols(searchQuery, scope);
-                        break;
-                    case 'functions':
-                        await functionListProvider.searchFunctions(searchQuery, scope);
-                        break;
-                    case 'all':
-                    default:
-                        // 对于全部内容搜索，使用原有的搜索逻辑
-                        if (scope === 'current') {
-                            await searchInCurrentFile(searchQuery);
-                        } else {
-                            await keywordSearchProvider.searchKeywords();
-                        }
-                        break;
-                }
-            } catch (error) {
-                vscode.window.showErrorMessage(`搜索时发生错误: ${error}`);
+        // 根据搜索类型执行相应的搜索操作
+        try {
+            switch (searchType) {
+                case 'bookmarks':
+                    await bookmarkProvider.searchBookmarks(searchQuery, scope);
+                    break;
+                case 'todos':
+                    await todoProvider.searchTodos(searchQuery, scope);
+                    break;
+                case 'pinnedSymbols':
+                    await pinnedSymbolProvider.searchPinnedSymbols(searchQuery, scope);
+                    break;
+                case 'functions':
+                    await functionListProvider.searchFunctions(searchQuery, scope);
+                    break;
+                case 'all':
+                default:
+                    // 对于全部内容搜索，搜索所有类型的内容
+                    await Promise.all([
+                        bookmarkProvider.searchBookmarks(searchQuery, scope),
+                        todoProvider.searchTodos(searchQuery, scope),
+                        pinnedSymbolProvider.searchPinnedSymbols(searchQuery, scope),
+                        functionListProvider.searchFunctions(searchQuery, scope)
+                    ]);
+                    break;
             }
+        } catch (error) {
+            vscode.window.showErrorMessage(`搜索时发生错误: ${error}`);
         }
+    } else {
+        // 如果搜索内容为空，清除搜索状态
+        searchQuery = '';
+        hasActiveSearch = false;
+        vscode.commands.executeCommand('setContext', 'codingHelper.hasActiveSearch', hasActiveSearch);
+        
+        // 清除所有provider的搜索状态
+        functionListProvider.clearSearch();
+        bookmarkProvider.clearSearch();
+        todoProvider.clearSearch();
+        pinnedSymbolProvider.clearSearch();
     }
 }
 
@@ -376,8 +392,6 @@ function clearSearch(
     bookmarkProvider.refresh();
     todoProvider.refresh();
     pinnedSymbolProvider.refresh();
-    
-    vscode.window.showInformationMessage('搜索已清除');
 }
 
 export function deactivate() {}

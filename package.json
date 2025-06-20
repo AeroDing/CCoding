@@ -114,24 +114,30 @@
         {
           "id": "codingHelper.tabSwitcher",
           "name": "控制面板",
-          "type": "webview"
+          "type": "webview",
+          "initialSize": 150,
+          "when": "true"
         },
         {
           "id": "codingHelper.functionList",
           "name": "函数列表",
-          "when": "resourceExtname == .js || resourceExtname == .ts || resourceExtname == .vue || resourceExtname == .jsx || resourceExtname == .tsx"
+          "when": "resourceExtname == .js || resourceExtname == .ts || resourceExtname == .vue || resourceExtname == .jsx || resourceExtname == .tsx",
+          "visibility": "visible"
         },
         {
           "id": "codingHelper.bookmarks",
-          "name": "书签"
+          "name": "书签",
+          "visibility": "collapsed"
         },
         {
           "id": "codingHelper.todos",
-          "name": "待办事项"
+          "name": "待办事项",
+          "visibility": "collapsed"
         },
         {
           "id": "codingHelper.pinnedSymbols",
-          "name": "置顶符号"
+          "name": "置顶符号",
+          "visibility": "collapsed"
         }
       ]
     },
