@@ -112,21 +112,26 @@
     "views": {
       "codingHelper": [
         {
+          "id": "codingHelper.tabSwitcher",
+          "name": "控制面板",
+          "type": "webview"
+        },
+        {
           "id": "codingHelper.functionList",
-          "name": "Function List",
+          "name": "函数列表",
           "when": "resourceExtname == .js || resourceExtname == .ts || resourceExtname == .vue || resourceExtname == .jsx || resourceExtname == .tsx"
         },
         {
           "id": "codingHelper.bookmarks",
-          "name": "Bookmarks"
+          "name": "书签"
         },
         {
           "id": "codingHelper.todos",
-          "name": "Todo List"
+          "name": "待办事项"
         },
         {
           "id": "codingHelper.pinnedSymbols",
-          "name": "Pinned Symbols"
+          "name": "置顶符号"
         }
       ]
     },

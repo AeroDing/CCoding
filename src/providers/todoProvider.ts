@@ -17,11 +17,24 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
     private decorationTypes: Map<string, vscode.TextEditorDecorationType> = new Map();
     private isScanning: boolean = false;
     private scanTimeout: NodeJS.Timeout | undefined;
+    private currentTab: 'current' | 'all' = 'current';
 
     constructor() {
         this.initDecorationTypes();
         this.refresh();
         this.setupEventListeners();
+    }
+
+    /**
+     * 设置当前Tab状态
+     * @param tab - 当前选择的Tab类型
+     * @description 外部调用此方法来更新Tab状态并刷新显示
+     */
+    setCurrentTab(tab: 'current' | 'all'): void {
+        if (this.currentTab !== tab) {
+            this.currentTab = tab;
+            this._onDidChangeTreeData.fire();
+        }
     }
 
     /**
@@ -62,7 +75,8 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
 
     getChildren(element?: TodoTreeItem): Thenable<TodoTreeItem[]> {
         if (!element) {
-            const groupedTodos = this.groupTodosByType();
+            const filteredTodos = this.getFilteredTodos();
+            const groupedTodos = this.groupTodosByType(filteredTodos);
             return Promise.resolve(Object.keys(groupedTodos).map(type => 
                 new TodoTreeItem(type, groupedTodos[type], true)
             ));
@@ -70,6 +84,33 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
             return Promise.resolve(element.todos.map(todo => new TodoTreeItem(todo.text, [todo], false)));
         }
         return Promise.resolve([]);
+    }
+
+    /**
+     * 根据当前Tab状态过滤待办事项
+     * @returns 过滤后的待办事项数组
+     * @description 当Tab为'current'时只返回当前文件的待办事项，为'all'时返回所有待办事项
+     */
+    private getFilteredTodos(): TodoItem[] {
+        if (this.currentTab === 'current') {
+            return this.getCurrentFileTodos();
+        }
+        return this.todos;
+    }
+
+    /**
+     * 获取当前文件的待办事项
+     * @returns 当前文件的待办事项数组
+     * @description 如果没有打开的编辑器，返回空数组
+     */
+    private getCurrentFileTodos(): TodoItem[] {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            return [];
+        }
+        
+        const currentFilePath = vscode.workspace.asRelativePath(editor.document.uri);
+        return this.todos.filter(todo => todo.file === currentFilePath);
     }
 
     private async scanForTodos() {
@@ -138,9 +179,9 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
         }
     }
 
-    private groupTodosByType(): { [key: string]: TodoItem[] } {
+    private groupTodosByType(todos: TodoItem[]): { [key: string]: TodoItem[] } {
         const grouped: { [key: string]: TodoItem[] } = {};
-        this.todos.forEach(todo => {
+        todos.forEach(todo => {
             if (!grouped[todo.type]) {
                 grouped[todo.type] = [];
             }
