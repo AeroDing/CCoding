@@ -74,6 +74,22 @@
         "command": "codingHelper.addBookmarkFromEditor",
         "title": "添加书签",
         "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.pinSymbolFromEditor",
+        "title": "置顶符号",
+        "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.unpinSymbol",
+        "title": "移除置顶",
+        "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.clearAllPinnedSymbols",
+        "title": "清空所有置顶符号",
+        "category": "Coding Helpers",
+        "icon": "$(clear-all)"
       }
     ],
     "keybindings": [
@@ -141,6 +157,10 @@
         {
           "command": "codingHelper.addBookmarkFromEditor",
           "when": "editorTextFocus"
+        },
+        {
+          "command": "codingHelper.pinSymbolFromEditor",
+          "when": "editorTextFocus"
         }
       ],
       "view/item/context": [
@@ -153,6 +173,18 @@
           "command": "codingHelper.removeBookmark",
           "when": "view == codingHelper.bookmarks && viewItem == bookmark",
           "group": "inline"
+        },
+        {
+          "command": "codingHelper.unpinSymbol",
+          "when": "view == codingHelper.pinnedSymbols && viewItem == pinnedSymbol",
+          "group": "inline"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "codingHelper.clearAllPinnedSymbols",
+          "when": "view == codingHelper.pinnedSymbols && codingHelper.hasPinnedSymbols",
+          "group": "navigation"
         }
       ]
     },

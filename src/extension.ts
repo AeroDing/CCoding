@@ -77,6 +77,18 @@ export function activate(context: vscode.ExtensionContext) {
             bookmarkProvider.addBookmarkFromEditor();
         }),
 
+        vscode.commands.registerCommand('codingHelper.pinSymbolFromEditor', () => {
+            pinnedSymbolProvider.pinCurrentSymbol();
+        }),
+
+        vscode.commands.registerCommand('codingHelper.unpinSymbol', (item: any) => {
+            pinnedSymbolProvider.unpinSymbol(item.pinnedSymbol.id);
+        }),
+
+        vscode.commands.registerCommand('codingHelper.clearAllPinnedSymbols', () => {
+            pinnedSymbolProvider.clearAllPinnedSymbols();
+        }),
+
         vscode.commands.registerCommand('codingHelper.editBookmark', (item: any) => {
             bookmarkProvider.editBookmark(item.bookmark.id);
         }),
