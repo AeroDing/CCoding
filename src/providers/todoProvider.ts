@@ -147,7 +147,7 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
                 await this.scanFolder(folder.uri);
             }
 
-            vscode.commands.executeCommand('setContext', 'codingHelper.hasTodos', this.todos.length > 0);
+            vscode.commands.executeCommand('setContext', 'CCoding.hasTodos', this.todos.length > 0);
             this._onDidChangeTreeData.fire();
             this.updateDecorations();
         } catch (error) {

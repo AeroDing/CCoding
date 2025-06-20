@@ -154,7 +154,7 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
         this.savePinnedSymbols();
         this.refresh();
         
-        vscode.commands.executeCommand('setContext', 'codingHelper.hasPinnedSymbols', this.pinnedSymbols.length > 0);
+        vscode.commands.executeCommand('setContext', 'CCoding.hasPinnedSymbols', this.pinnedSymbols.length > 0);
         vscode.window.showInformationMessage(`Symbol "${symbolAtPosition.name}" pinned`);
     }
 
@@ -162,7 +162,7 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
         this.pinnedSymbols = this.pinnedSymbols.filter(s => s.id !== symbolId);
         this.savePinnedSymbols();
         this.refresh();
-        vscode.commands.executeCommand('setContext', 'codingHelper.hasPinnedSymbols', this.pinnedSymbols.length > 0);
+        vscode.commands.executeCommand('setContext', 'CCoding.hasPinnedSymbols', this.pinnedSymbols.length > 0);
     }
 
     /**
@@ -182,7 +182,7 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
                 this.pinnedSymbols = [];
                 this.savePinnedSymbols();
                 this.refresh();
-                vscode.commands.executeCommand('setContext', 'codingHelper.hasPinnedSymbols', false);
+                vscode.commands.executeCommand('setContext', 'CCoding.hasPinnedSymbols', false);
                 vscode.window.showInformationMessage('已清空所有置顶符号');
             }
         });
@@ -422,13 +422,13 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
         this.savePinnedSymbols();
         this.refresh();
         
-        vscode.commands.executeCommand('setContext', 'codingHelper.hasPinnedSymbols', this.pinnedSymbols.length > 0);
+        vscode.commands.executeCommand('setContext', 'CCoding.hasPinnedSymbols', this.pinnedSymbols.length > 0);
         vscode.window.showInformationMessage(`符号 "${symbol.name}" 已置顶`);
     }
 
     private loadPinnedSymbols() {
         try {
-            const saved = this.context.globalState.get<PinnedSymbol[]>('codingHelper.pinnedSymbols', []);
+            const saved = this.context.globalState.get<PinnedSymbol[]>('CCoding.pinnedSymbols', []);
             this.pinnedSymbols = saved
                 .filter(s => this.isValidPinnedSymbol(s))
                 .map(s => ({
@@ -440,14 +440,14 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
                     )
                 }));
             
-            vscode.commands.executeCommand('setContext', 'codingHelper.hasPinnedSymbols', this.pinnedSymbols.length > 0);
+            vscode.commands.executeCommand('setContext', 'CCoding.hasPinnedSymbols', this.pinnedSymbols.length > 0);
         } catch (error) {
             console.error('Error loading pinned symbols:', error);
             // 如果加载失败，重置为空数组
             this.pinnedSymbols = [];
             // 清除损坏的数据
-            this.context.globalState.update('codingHelper.pinnedSymbols', []);
-            vscode.commands.executeCommand('setContext', 'codingHelper.hasPinnedSymbols', false);
+            this.context.globalState.update('CCoding.pinnedSymbols', []);
+            vscode.commands.executeCommand('setContext', 'CCoding.hasPinnedSymbols', false);
         }
     }
 
@@ -491,7 +491,7 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
     }
 
     private savePinnedSymbols() {
-        this.context.globalState.update('codingHelper.pinnedSymbols', this.pinnedSymbols);
+        this.context.globalState.update('CCoding.pinnedSymbols', this.pinnedSymbols);
     }
 
     /**

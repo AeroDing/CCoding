@@ -133,7 +133,7 @@ export class BookmarkProvider implements vscode.TreeDataProvider<BookmarkItem> {
             this.saveBookmarks();
             this.refresh();
             
-            vscode.commands.executeCommand('setContext', 'codingHelper.hasBookmarks', this.bookmarks.length > 0);
+            vscode.commands.executeCommand('setContext', 'CCoding.hasBookmarks', this.bookmarks.length > 0);
             vscode.window.showInformationMessage(`Bookmark "${label}" added`);
         }
     }
@@ -171,7 +171,7 @@ export class BookmarkProvider implements vscode.TreeDataProvider<BookmarkItem> {
                 this.saveBookmarks();
                 this.refresh();
                 
-                vscode.commands.executeCommand('setContext', 'codingHelper.hasBookmarks', this.bookmarks.length > 0);
+                vscode.commands.executeCommand('setContext', 'CCoding.hasBookmarks', this.bookmarks.length > 0);
                 vscode.window.showInformationMessage(`Bookmark "${label}" added for ${fileName}`);
             }
         } catch (error) {
@@ -234,7 +234,7 @@ export class BookmarkProvider implements vscode.TreeDataProvider<BookmarkItem> {
             this.saveBookmarks();
             this.refresh();
             
-            vscode.commands.executeCommand('setContext', 'codingHelper.hasBookmarks', this.bookmarks.length > 0);
+            vscode.commands.executeCommand('setContext', 'CCoding.hasBookmarks', this.bookmarks.length > 0);
             vscode.window.showInformationMessage(`书签 "${label}" 已添加到 ${fileName}`);
         }
     }
@@ -275,13 +275,13 @@ export class BookmarkProvider implements vscode.TreeDataProvider<BookmarkItem> {
             this.bookmarks = this.bookmarks.filter(b => b.id !== bookmarkId);
             this.saveBookmarks();
             this.refresh();
-            vscode.commands.executeCommand('setContext', 'codingHelper.hasBookmarks', this.bookmarks.length > 0);
+            vscode.commands.executeCommand('setContext', 'CCoding.hasBookmarks', this.bookmarks.length > 0);
             vscode.window.showInformationMessage(`Bookmark "${bookmark.label}" removed`);
         }
     }
 
     private loadBookmarks() {
-        const saved = this.context.globalState.get<Bookmark[]>('codingHelper.bookmarks', []);
+        const saved = this.context.globalState.get<Bookmark[]>('CCoding.bookmarks', []);
         this.bookmarks = saved.map(b => ({
             ...b,
             uri: vscode.Uri.parse(b.uri.toString()),
@@ -290,11 +290,11 @@ export class BookmarkProvider implements vscode.TreeDataProvider<BookmarkItem> {
                 new vscode.Position(b.range.end.line, b.range.end.character)
             )
         }));
-        vscode.commands.executeCommand('setContext', 'codingHelper.hasBookmarks', this.bookmarks.length > 0);
+        vscode.commands.executeCommand('setContext', 'CCoding.hasBookmarks', this.bookmarks.length > 0);
     }
 
     private saveBookmarks() {
-        this.context.globalState.update('codingHelper.bookmarks', this.bookmarks);
+        this.context.globalState.update('CCoding.bookmarks', this.bookmarks);
     }
 
     /**

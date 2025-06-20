@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-这是一个专为前端开发者设计的 VSCode 插件 "Coding Helper"，提供强大的代码导航和管理功能，特别适合 Vue 和 React 项目开发。
+这是一个专为前端开发者设计的 VSCode 插件 "CCoding"，提供强大的代码导航和管理功能，特别适合 Vue 和 React 项目开发。
 
 ## 常用命令
 
@@ -62,7 +62,7 @@ npm run vscode:prepublish  # 发布前准备（相当于 compile）
 - `Ctrl+Shift+J` / `Cmd+Shift+J` - 快速跳转
 
 #### 命令系统
-所有功能都通过 VSCode 命令系统暴露，命令前缀为 `codingHelper.`
+所有功能都通过 VSCode 命令系统暴露，命令前缀为 `CCoding.`
 
 ### 开发注意事项
 
@@ -80,6 +80,6 @@ npm run vscode:prepublish  # 发布前准备（相当于 compile）
 - 其他状态基于当前活动编辑器动态计算
 
 #### 扩展点集成
-- 侧边栏视图容器：`codingHelper`
+- 侧边栏视图容器：`CCoding`
 - 资源管理器视图：根据文件类型条件显示
 - 命令面板集成：所有功能都可通过命令面板访问

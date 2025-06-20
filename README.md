@@ -1,4 +1,4 @@
-# Coding Helper
+# CCoding
 
 一个专为开发者设计的 VSCode 插件，提供强大的代码导航和管理功能。
 
@@ -51,23 +51,6 @@
 - 待办事项
 - 置顶符号
 
-## 支持的文件类型
-
-- JavaScript (.js)
-- TypeScript (.ts)
-- Vue 单文件组件 (.vue)
-- React JSX (.jsx)
-- React TSX (.tsx)
-- Python (.py)
-- Java (.java)
-- C/C++ (.c, .cpp)
-- C# (.cs)
-- PHP (.php)
-- Ruby (.rb)
-- Go (.go)
-- Rust (.rs)
-- Swift (.swift)
-
 ## 配置项
 
 插件目前使用默认配置，后续版本将添加更多自定义选项。
@@ -79,15 +62,5 @@
 ## 许可证
 
 MIT License
-
-## 更新日志
-
-### 1.0.0
-- 初始版本发布
-- 实现所有核心功能
-- 支持 Vue 和 React 框架
-- 添加多语言支持
-
----
 
 **享受更高效的编程体验！** 🚀

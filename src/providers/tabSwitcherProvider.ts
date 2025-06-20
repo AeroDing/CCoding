@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
  * Tab切换器Provider - 使用WebView实现固定的搜索框和切换按钮
  */
 export class TabSwitcherProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'codingHelper.tabSwitcher';
+    public static readonly viewType = 'CCoding.tabSwitcher';
     private _view?: vscode.WebviewView;
 
     constructor(
@@ -70,7 +70,7 @@ export class TabSwitcherProvider implements vscode.WebviewViewProvider {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coding Helpers Control</title>
+    <title>CCoding Control</title>
     <style>
         body {
             padding: 10px;

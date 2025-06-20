@@ -13,11 +13,11 @@ let hasActiveSearch = false;
 let searchQuery = '';
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Coding Helpers is now active!');
+    console.log('CCoding is now active!');
 
     // 设置初始上下文
-    vscode.commands.executeCommand('setContext', 'codingHelper.currentTab', currentTab);
-    vscode.commands.executeCommand('setContext', 'codingHelper.hasActiveSearch', hasActiveSearch);
+    vscode.commands.executeCommand('setContext', 'CCoding.currentTab', currentTab);
+    vscode.commands.executeCommand('setContext', 'CCoding.hasActiveSearch', hasActiveSearch);
 
     const functionListProvider = new FunctionListProvider();
     const bookmarkProvider = new BookmarkProvider(context);
@@ -42,98 +42,98 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider(TabSwitcherProvider.viewType, tabSwitcherProvider)
     );
 
-    const functionListTreeView = vscode.window.createTreeView('codingHelper.functionList', {
+    const functionListTreeView = vscode.window.createTreeView('CCoding.functionList', {
         treeDataProvider: functionListProvider,
         showCollapseAll: true
     });
 
     // 默认聚焦到控制面板
     setTimeout(() => {
-        vscode.commands.executeCommand('codingHelper.tabSwitcher.focus');
+        vscode.commands.executeCommand('CCoding.tabSwitcher.focus');
     }, 500);
 
-    vscode.window.createTreeView('codingHelper.bookmarks', {
+    vscode.window.createTreeView('CCoding.bookmarks', {
         treeDataProvider: bookmarkProvider,
         showCollapseAll: true
     });
 
-    vscode.window.createTreeView('codingHelper.todos', {
+    vscode.window.createTreeView('CCoding.todos', {
         treeDataProvider: todoProvider,
         showCollapseAll: true
     });
 
-    vscode.window.createTreeView('codingHelper.pinnedSymbols', {
+    vscode.window.createTreeView('CCoding.pinnedSymbols', {
         treeDataProvider: pinnedSymbolProvider,
         showCollapseAll: true
     });
 
     const disposables = [
-        vscode.commands.registerCommand('codingHelper.showFunctionList', () => {
+        vscode.commands.registerCommand('CCoding.showFunctionList', () => {
             functionListProvider.refresh();
         }),
 
-        vscode.commands.registerCommand('codingHelper.addBookmark', () => {
+        vscode.commands.registerCommand('CCoding.addBookmark', () => {
             bookmarkProvider.addBookmark();
         }),
 
-        vscode.commands.registerCommand('codingHelper.showBookmarks', () => {
+        vscode.commands.registerCommand('CCoding.showBookmarks', () => {
             bookmarkProvider.refresh();
         }),
 
-        vscode.commands.registerCommand('codingHelper.quickJump', () => {
+        vscode.commands.registerCommand('CCoding.quickJump', () => {
             showQuickJumpPicker();
         }),
 
-        vscode.commands.registerCommand('codingHelper.pinSymbol', () => {
+        vscode.commands.registerCommand('CCoding.pinSymbol', () => {
             pinnedSymbolProvider.pinCurrentSymbol();
         }),
 
-        vscode.commands.registerCommand('codingHelper.showTodos', () => {
+        vscode.commands.registerCommand('CCoding.showTodos', () => {
             todoProvider.forceRefresh();
         }),
 
-        vscode.commands.registerCommand('codingHelper.showTimeline', () => {
+        vscode.commands.registerCommand('CCoding.showTimeline', () => {
             timelineProvider.showTimeline();
         }),
 
-        vscode.commands.registerCommand('codingHelper.searchKeywords', () => {
+        vscode.commands.registerCommand('CCoding.searchKeywords', () => {
             keywordSearchProvider.searchKeywords();
         }),
 
-        vscode.commands.registerCommand('codingHelper.clearSearch', () => {
+        vscode.commands.registerCommand('CCoding.clearSearch', () => {
             clearSearch(tabSwitcherProvider, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider);
         }),
 
-        vscode.commands.registerCommand('codingHelper.testSearch', () => {
+        vscode.commands.registerCommand('CCoding.testSearch', () => {
             // 测试搜索功能，确保没有弹窗
             performSearch('current', 'all', functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider, keywordSearchProvider, 'test');
         }),
 
-        vscode.commands.registerCommand('codingHelper.addBookmarkFromContext', (uri: vscode.Uri) => {
+        vscode.commands.registerCommand('CCoding.addBookmarkFromContext', (uri: vscode.Uri) => {
             bookmarkProvider.addBookmarkFromContext(uri);
         }),
 
-        vscode.commands.registerCommand('codingHelper.addBookmarkFromEditor', () => {
+        vscode.commands.registerCommand('CCoding.addBookmarkFromEditor', () => {
             bookmarkProvider.addBookmarkFromEditor();
         }),
 
-        vscode.commands.registerCommand('codingHelper.pinSymbolFromEditor', () => {
+        vscode.commands.registerCommand('CCoding.pinSymbolFromEditor', () => {
             pinnedSymbolProvider.pinCurrentSymbol();
         }),
 
-        vscode.commands.registerCommand('codingHelper.unpinSymbol', (item: any) => {
+        vscode.commands.registerCommand('CCoding.unpinSymbol', (item: any) => {
             pinnedSymbolProvider.unpinSymbol(item.pinnedSymbol.id);
         }),
 
-        vscode.commands.registerCommand('codingHelper.clearAllPinnedSymbols', () => {
+        vscode.commands.registerCommand('CCoding.clearAllPinnedSymbols', () => {
             pinnedSymbolProvider.clearAllPinnedSymbols();
         }),
 
-        vscode.commands.registerCommand('codingHelper.editBookmark', (item: any) => {
+        vscode.commands.registerCommand('CCoding.editBookmark', (item: any) => {
             bookmarkProvider.editBookmark(item.bookmark.id);
         }),
 
-        vscode.commands.registerCommand('codingHelper.removeBookmark', (item: any) => {
+        vscode.commands.registerCommand('CCoding.removeBookmark', (item: any) => {
             bookmarkProvider.removeBookmark(item.bookmark.id);
         }),
 
@@ -209,7 +209,7 @@ function switchTab(
     pinnedSymbolProvider: PinnedSymbolProvider
 ) {
     currentTab = tab;
-    vscode.commands.executeCommand('setContext', 'codingHelper.currentTab', currentTab);
+    vscode.commands.executeCommand('setContext', 'CCoding.currentTab', currentTab);
     
     // 更新WebView的选项卡状态
     tabSwitcherProvider.updateCurrentTab(tab);
@@ -259,7 +259,7 @@ async function performSearch(
     if (searchInput) {
         searchQuery = searchInput;
         hasActiveSearch = true;
-        vscode.commands.executeCommand('setContext', 'codingHelper.hasActiveSearch', hasActiveSearch);
+        vscode.commands.executeCommand('setContext', 'CCoding.hasActiveSearch', hasActiveSearch);
         
         // 根据搜索类型执行相应的搜索操作
         try {
@@ -294,7 +294,7 @@ async function performSearch(
         // 如果搜索内容为空，清除搜索状态
         searchQuery = '';
         hasActiveSearch = false;
-        vscode.commands.executeCommand('setContext', 'codingHelper.hasActiveSearch', hasActiveSearch);
+        vscode.commands.executeCommand('setContext', 'CCoding.hasActiveSearch', hasActiveSearch);
         
         // 清除所有provider的搜索状态
         functionListProvider.clearSearch();
@@ -382,7 +382,7 @@ function clearSearch(
 ) {
     searchQuery = '';
     hasActiveSearch = false;
-    vscode.commands.executeCommand('setContext', 'codingHelper.hasActiveSearch', hasActiveSearch);
+    vscode.commands.executeCommand('setContext', 'CCoding.hasActiveSearch', hasActiveSearch);
     
     // 清除WebView中的搜索框
     tabSwitcherProvider.clearSearch();
