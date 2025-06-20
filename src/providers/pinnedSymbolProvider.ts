@@ -476,6 +476,92 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
     private savePinnedSymbols() {
         this.context.globalState.update('codingHelper.pinnedSymbols', this.pinnedSymbols);
     }
+
+    /**
+     * 搜索置顶符号
+     * @param query - 搜索查询
+     * @param scope - 搜索范围：'current' 当前文件 | 'all' 所有文件
+     * @returns 匹配的置顶符号
+     * @description 在置顶符号名称和文件名中搜索匹配的内容
+     */
+    async searchPinnedSymbols(query: string, scope: 'current' | 'all'): Promise<void> {
+        if (!query || !query.trim()) {
+            vscode.window.showInformationMessage('请输入搜索关键字');
+            return;
+        }
+
+        const searchQuery = query.toLowerCase().trim();
+        const targetSymbols = scope === 'current' ? this.getCurrentFilePinnedSymbols() : this.pinnedSymbols;
+        
+        const results = targetSymbols.filter(symbol => {
+            const fileName = vscode.workspace.asRelativePath(symbol.uri);
+            const symbolTypeName = this.getSymbolTypeName(symbol.kind);
+            return symbol.name.toLowerCase().includes(searchQuery) ||
+                   fileName.toLowerCase().includes(searchQuery) ||
+                   symbolTypeName.toLowerCase().includes(searchQuery);
+        });
+
+        if (results.length === 0) {
+            const scopeText = scope === 'current' ? '当前文件' : '项目';
+            vscode.window.showInformationMessage(`在${scopeText}的置顶符号中未找到 "${query}"`);
+            return;
+        }
+
+        // 显示搜索结果选择器
+        const items = results.map(symbol => {
+            const fileName = vscode.workspace.asRelativePath(symbol.uri);
+            const symbolTypeName = this.getSymbolTypeName(symbol.kind);
+            return {
+                label: symbol.name,
+                description: `${symbolTypeName} · ${fileName}:${symbol.range.start.line + 1}`,
+                detail: `置顶符号 - 第 ${symbol.range.start.line + 1} 行`,
+                symbol: symbol
+            };
+        });
+
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: `找到 ${results.length} 个置顶符号结果`
+        });
+
+        if (selected) {
+            // 跳转到选中的置顶符号
+            await vscode.commands.executeCommand('vscode.open', selected.symbol.uri, {
+                selection: selected.symbol.range
+            });
+        }
+    }
+
+    /**
+     * 获取符号类型的中文名称
+     * @param kind 符号类型
+     * @returns 中文类型名称
+     */
+    private getSymbolTypeName(kind: vscode.SymbolKind): string {
+        switch (kind) {
+            case vscode.SymbolKind.Function:
+                return '函数';
+            case vscode.SymbolKind.Method:
+                return '方法';
+            case vscode.SymbolKind.Class:
+                return '类';
+            case vscode.SymbolKind.Constructor:
+                return '构造函数';
+            case vscode.SymbolKind.Variable:
+                return '变量';
+            case vscode.SymbolKind.Constant:
+                return '常量';
+            case vscode.SymbolKind.Property:
+                return '属性';
+            case vscode.SymbolKind.Interface:
+                return '接口';
+            case vscode.SymbolKind.Enum:
+                return '枚举';
+            case vscode.SymbolKind.Field:
+                return '字段';
+            default:
+                return '符号';
+        }
+    }
 }
 
 class PinnedSymbolItem extends vscode.TreeItem {

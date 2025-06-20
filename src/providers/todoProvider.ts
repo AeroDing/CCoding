@@ -360,6 +360,58 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
         });
         this.decorationTypes.clear();
     }
+
+    /**
+     * 搜索待办事项
+     * @param query - 搜索查询
+     * @param scope - 搜索范围：'current' 当前文件 | 'all' 所有文件
+     * @returns 匹配的待办事项
+     * @description 在待办事项文本和文件名中搜索匹配的内容
+     */
+    async searchTodos(query: string, scope: 'current' | 'all'): Promise<void> {
+        if (!query || !query.trim()) {
+            vscode.window.showInformationMessage('请输入搜索关键字');
+            return;
+        }
+
+        const searchQuery = query.toLowerCase().trim();
+        const targetTodos = scope === 'current' ? this.getCurrentFileTodos() : this.todos;
+        
+        const results = targetTodos.filter(todo => {
+            return todo.text.toLowerCase().includes(searchQuery) ||
+                   todo.file.toLowerCase().includes(searchQuery) ||
+                   todo.type.toLowerCase().includes(searchQuery);
+        });
+
+        if (results.length === 0) {
+            const scopeText = scope === 'current' ? '当前文件' : '项目';
+            vscode.window.showInformationMessage(`在${scopeText}的待办事项中未找到 "${query}"`);
+            return;
+        }
+
+        // 显示搜索结果选择器
+        const items = results.map(todo => ({
+            label: `[${todo.type}] ${todo.text}`,
+            description: `${todo.file}:${todo.line + 1}`,
+            detail: `待办事项 - 第 ${todo.line + 1} 行`,
+            todo: todo
+        }));
+
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: `找到 ${results.length} 个待办事项结果`
+        });
+
+        if (selected && vscode.workspace.workspaceFolders) {
+            // 跳转到选中的待办事项
+            const filePath = vscode.Uri.file(vscode.workspace.workspaceFolders[0].uri.fsPath + '/' + selected.todo.file);
+            const document = await vscode.workspace.openTextDocument(filePath);
+            const editor = await vscode.window.showTextDocument(document);
+            
+            const position = new vscode.Position(selected.todo.line, selected.todo.column);
+            editor.selection = new vscode.Selection(position, position);
+            editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
+        }
+    }
 }
 
 class TodoTreeItem extends vscode.TreeItem {

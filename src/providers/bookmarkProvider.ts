@@ -281,6 +281,57 @@ export class BookmarkProvider implements vscode.TreeDataProvider<BookmarkItem> {
     private saveBookmarks() {
         this.context.globalState.update('codingHelper.bookmarks', this.bookmarks);
     }
+
+    /**
+     * 搜索书签
+     * @param query - 搜索查询
+     * @param scope - 搜索范围：'current' 当前文件 | 'all' 所有文件
+     * @returns 匹配的书签项数组
+     * @description 在书签标签和文件名中搜索匹配的内容
+     */
+    async searchBookmarks(query: string, scope: 'current' | 'all'): Promise<void> {
+        if (!query || !query.trim()) {
+            vscode.window.showInformationMessage('请输入搜索关键字');
+            return;
+        }
+
+        const searchQuery = query.toLowerCase().trim();
+        const targetBookmarks = scope === 'current' ? this.getCurrentFileBookmarks() : this.bookmarks;
+        
+        const results = targetBookmarks.filter(bookmark => {
+            const fileName = vscode.workspace.asRelativePath(bookmark.uri);
+            return bookmark.label.toLowerCase().includes(searchQuery) ||
+                   fileName.toLowerCase().includes(searchQuery);
+        });
+
+        if (results.length === 0) {
+            const scopeText = scope === 'current' ? '当前文件' : '项目';
+            vscode.window.showInformationMessage(`在${scopeText}的书签中未找到 "${query}"`);
+            return;
+        }
+
+        // 显示搜索结果选择器
+        const items = results.map(bookmark => {
+            const fileName = vscode.workspace.asRelativePath(bookmark.uri);
+            return {
+                label: bookmark.label,
+                description: `${fileName}:${bookmark.range.start.line + 1}`,
+                detail: `书签 - 第 ${bookmark.range.start.line + 1} 行`,
+                bookmark: bookmark
+            };
+        });
+
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: `找到 ${results.length} 个书签结果`
+        });
+
+        if (selected) {
+            // 跳转到选中的书签
+            await vscode.commands.executeCommand('vscode.open', selected.bookmark.uri, {
+                selection: selected.bookmark.range
+            });
+        }
+    }
 }
 
 class BookmarkItem extends vscode.TreeItem {

@@ -32,8 +32,8 @@ export function activate(context: vscode.ExtensionContext) {
         (tab: 'current' | 'all') => {
             switchTab(tab, tabSwitcherProvider, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider);
         },
-        (query: string, scope: 'current' | 'all') => {
-            performSearch(scope, keywordSearchProvider, query);
+        (query: string, scope: 'current' | 'all', searchType: string) => {
+            performSearch(scope, searchType, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider, keywordSearchProvider, query);
         }
     );
 
@@ -219,16 +219,32 @@ function switchTab(
 /**
  * 执行搜索
  * @param scope - 搜索范围
+ * @param searchType - 搜索类型
+ * @param functionListProvider - 功能列表provider
+ * @param bookmarkProvider - 书签provider  
+ * @param todoProvider - 待办provider
+ * @param pinnedSymbolProvider - 置顶符号provider
  * @param keywordSearchProvider - 关键字搜索provider
  * @param query - 搜索查询（可选，如果没有提供会弹出输入框）
  */
-async function performSearch(scope: 'current' | 'all', keywordSearchProvider: KeywordSearchProvider, query?: string) {
+async function performSearch(
+    scope: 'current' | 'all', 
+    searchType: string,
+    functionListProvider: FunctionListProvider,
+    bookmarkProvider: BookmarkProvider,
+    todoProvider: TodoProvider,
+    pinnedSymbolProvider: PinnedSymbolProvider,
+    keywordSearchProvider: KeywordSearchProvider,
+    query?: string
+) {
     let searchInput = query;
     
     // 如果没有提供查询参数，则弹出输入框
     if (!searchInput) {
+        const typeText = getSearchTypeText(searchType);
+        const scopeText = scope === 'current' ? '当前文件' : '整个项目';
         searchInput = await vscode.window.showInputBox({
-            placeHolder: scope === 'current' ? '在当前文件中搜索...' : '在整个项目中搜索...',
+            placeHolder: `在${scopeText}的${typeText}中搜索...`,
             prompt: `请输入要搜索的关键字`,
             value: searchQuery
         });
@@ -240,16 +256,52 @@ async function performSearch(scope: 'current' | 'all', keywordSearchProvider: Ke
         vscode.commands.executeCommand('setContext', 'codingHelper.hasActiveSearch', hasActiveSearch);
         
         if (searchQuery) {
-            // 执行实际的搜索操作
-            if (scope === 'current') {
-                await searchInCurrentFile(searchQuery);
-            } else {
-                // 对于全项目搜索，使用现有的搜索功能
-                // 注意：KeywordSearchProvider的searchKeywords方法会自己处理用户输入
-                await keywordSearchProvider.searchKeywords();
+            // 根据搜索类型执行相应的搜索操作
+            try {
+                switch (searchType) {
+                    case 'bookmarks':
+                        await bookmarkProvider.searchBookmarks(searchQuery, scope);
+                        break;
+                    case 'todos':
+                        await todoProvider.searchTodos(searchQuery, scope);
+                        break;
+                    case 'pinnedSymbols':
+                        await pinnedSymbolProvider.searchPinnedSymbols(searchQuery, scope);
+                        break;
+                    case 'functions':
+                        await functionListProvider.searchFunctions(searchQuery, scope);
+                        break;
+                    case 'all':
+                    default:
+                        // 对于全部内容搜索，使用原有的搜索逻辑
+                        if (scope === 'current') {
+                            await searchInCurrentFile(searchQuery);
+                        } else {
+                            await keywordSearchProvider.searchKeywords();
+                        }
+                        break;
+                }
+            } catch (error) {
+                vscode.window.showErrorMessage(`搜索时发生错误: ${error}`);
             }
         }
     }
+}
+
+/**
+ * 获取搜索类型的显示文本
+ * @param searchType - 搜索类型
+ * @returns 显示文本
+ */
+function getSearchTypeText(searchType: string): string {
+    const typeMap: { [key: string]: string } = {
+        'all': '所有内容',
+        'bookmarks': '书签',
+        'todos': '待办事项',
+        'pinnedSymbols': '置顶符号',
+        'functions': '功能列表'
+    };
+    return typeMap[searchType] || '所有内容';
 }
 
 /**
