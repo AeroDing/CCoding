@@ -125,9 +125,11 @@ export function activate(context: vscode.ExtensionContext) {
 
         vscode.window.onDidChangeActiveTextEditor(() => {
             functionListProvider.refresh();
-            // 如果当前是"当前文件"模式，切换文件时需要更新待办事项显示
+            // 如果当前是"当前文件"模式，切换文件时需要更新所有provider的显示
             if (currentTab === 'current') {
                 todoProvider.refresh();
+                bookmarkProvider.refresh();
+                pinnedSymbolProvider.refresh();
             }
         }),
 
@@ -198,8 +200,10 @@ function switchTab(
     // 更新WebView的选项卡状态
     tabSwitcherProvider.updateCurrentTab(tab);
     
-    // 更新TodoProvider的当前Tab状态
+    // 更新所有Provider的当前Tab状态
     todoProvider.setCurrentTab(tab);
+    bookmarkProvider.setCurrentTab(tab);
+    pinnedSymbolProvider.setCurrentTab(tab);
     
     // 刷新所有相关的provider以更新显示内容
     functionListProvider.refresh();

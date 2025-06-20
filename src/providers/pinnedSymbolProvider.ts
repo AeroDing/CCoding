@@ -15,10 +15,23 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
 
     private pinnedSymbols: PinnedSymbol[] = [];
     private context: vscode.ExtensionContext;
+    private currentTab: 'current' | 'all' = 'current';
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
         this.loadPinnedSymbols();
+    }
+
+    /**
+     * 设置当前Tab状态
+     * @param tab - 当前选择的Tab类型
+     * @description 外部调用此方法来更新Tab状态并刷新显示
+     */
+    setCurrentTab(tab: 'current' | 'all'): void {
+        if (this.currentTab !== tab) {
+            this.currentTab = tab;
+            this.refresh();
+        }
     }
 
     refresh(): void {
@@ -31,12 +44,40 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
 
     getChildren(element?: PinnedSymbolItem): Thenable<PinnedSymbolItem[]> {
         if (!element) {
+            const filteredSymbols = this.getFilteredPinnedSymbols();
             // 按时间戳降序排列，最新置顶的在前面
-            const sortedSymbols = [...this.pinnedSymbols].sort((a, b) => b.timestamp - a.timestamp);
+            const sortedSymbols = [...filteredSymbols].sort((a, b) => b.timestamp - a.timestamp);
             const items = sortedSymbols.map(symbol => new PinnedSymbolItem(symbol));
             return Promise.resolve(items);
         }
         return Promise.resolve([]);
+    }
+
+    /**
+     * 根据当前Tab状态过滤置顶符号
+     * @returns 过滤后的置顶符号数组
+     * @description 当Tab为'current'时只返回当前文件的置顶符号，为'all'时返回所有置顶符号
+     */
+    private getFilteredPinnedSymbols(): PinnedSymbol[] {
+        if (this.currentTab === 'current') {
+            return this.getCurrentFilePinnedSymbols();
+        }
+        return this.pinnedSymbols;
+    }
+
+    /**
+     * 获取当前文件的置顶符号
+     * @returns 当前文件的置顶符号数组
+     * @description 如果没有打开的编辑器，返回空数组
+     */
+    private getCurrentFilePinnedSymbols(): PinnedSymbol[] {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            return [];
+        }
+        
+        const currentFileUri = editor.document.uri.toString();
+        return this.pinnedSymbols.filter(symbol => symbol.uri.toString() === currentFileUri);
     }
 
     async pinCurrentSymbol() {

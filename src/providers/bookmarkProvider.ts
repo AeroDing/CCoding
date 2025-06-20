@@ -14,10 +14,23 @@ export class BookmarkProvider implements vscode.TreeDataProvider<BookmarkItem> {
 
     private bookmarks: Bookmark[] = [];
     private context: vscode.ExtensionContext;
+    private currentTab: 'current' | 'all' = 'current';
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
         this.loadBookmarks();
+    }
+
+    /**
+     * 设置当前Tab状态
+     * @param tab - 当前选择的Tab类型
+     * @description 外部调用此方法来更新Tab状态并刷新显示
+     */
+    setCurrentTab(tab: 'current' | 'all'): void {
+        if (this.currentTab !== tab) {
+            this.currentTab = tab;
+            this.refresh();
+        }
     }
 
     refresh(): void {
@@ -30,10 +43,38 @@ export class BookmarkProvider implements vscode.TreeDataProvider<BookmarkItem> {
 
     getChildren(element?: BookmarkItem): Thenable<BookmarkItem[]> {
         if (!element) {
-            const items = this.bookmarks.map(bookmark => new BookmarkItem(bookmark));
+            const filteredBookmarks = this.getFilteredBookmarks();
+            const items = filteredBookmarks.map(bookmark => new BookmarkItem(bookmark));
             return Promise.resolve(items);
         }
         return Promise.resolve([]);
+    }
+
+    /**
+     * 根据当前Tab状态过滤书签
+     * @returns 过滤后的书签数组
+     * @description 当Tab为'current'时只返回当前文件的书签，为'all'时返回所有书签
+     */
+    private getFilteredBookmarks(): Bookmark[] {
+        if (this.currentTab === 'current') {
+            return this.getCurrentFileBookmarks();
+        }
+        return this.bookmarks;
+    }
+
+    /**
+     * 获取当前文件的书签
+     * @returns 当前文件的书签数组
+     * @description 如果没有打开的编辑器，返回空数组
+     */
+    private getCurrentFileBookmarks(): Bookmark[] {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            return [];
+        }
+        
+        const currentFileUri = editor.document.uri.toString();
+        return this.bookmarks.filter(bookmark => bookmark.uri.toString() === currentFileUri);
     }
 
     async addBookmark() {
