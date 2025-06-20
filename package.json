@@ -1,0 +1,195 @@
+{
+  "name": "coding-helpers",
+  "displayName": "Coding Helpers",
+  "description": "A comprehensive coding assistant with function lists, bookmarks, quick navigation, symbol pinning, todo lists, timeline, and keyword search for Vue/React development",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codingHelper.showFunctionList",
+        "title": "Show Function List",
+        "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.addBookmark",
+        "title": "Add Bookmark",
+        "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.showBookmarks",
+        "title": "Show Bookmarks",
+        "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.quickJump",
+        "title": "Quick Jump",
+        "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.pinSymbol",
+        "title": "Pin Symbol",
+        "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.showTodos",
+        "title": "Show Todo List",
+        "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.showTimeline",
+        "title": "Show Timeline",
+        "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.searchKeywords",
+        "title": "Search Keywords",
+        "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.addBookmarkFromContext",
+        "title": "Add to Bookmarks",
+        "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.editBookmark",
+        "title": "Edit Bookmark",
+        "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.removeBookmark",
+        "title": "Remove Bookmark",
+        "category": "Coding Helpers"
+      },
+      {
+        "command": "codingHelper.addBookmarkFromEditor",
+        "title": "添加书签",
+        "category": "Coding Helpers"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "codingHelper.showFunctionList",
+        "key": "ctrl+shift+f",
+        "mac": "cmd+shift+f"
+      },
+      {
+        "command": "codingHelper.addBookmark",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b"
+      },
+      {
+        "command": "codingHelper.quickJump",
+        "key": "ctrl+shift+j",
+        "mac": "cmd+shift+j"
+      }
+    ],
+    "views": {
+      "codingHelper": [
+        {
+          "id": "codingHelper.functionList",
+          "name": "Function List",
+          "when": "resourceExtname == .js || resourceExtname == .ts || resourceExtname == .vue || resourceExtname == .jsx || resourceExtname == .tsx"
+        },
+        {
+          "id": "codingHelper.bookmarks",
+          "name": "Bookmarks"
+        },
+        {
+          "id": "codingHelper.todos",
+          "name": "Todo List"
+        },
+        {
+          "id": "codingHelper.pinnedSymbols",
+          "name": "Pinned Symbols"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codingHelper",
+          "title": "Coding Helpers",
+          "icon": "src/images/code-working.svg"
+        }
+      ]
+    },
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "codingHelper.addBookmarkFromContext",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "submenu": "codingHelper.editorSubmenu",
+          "when": "editorTextFocus",
+          "group": "navigation@1"
+        }
+      ],
+      "codingHelper.editorSubmenu": [
+        {
+          "command": "codingHelper.addBookmarkFromEditor",
+          "when": "editorTextFocus"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "codingHelper.editBookmark",
+          "when": "view == codingHelper.bookmarks && viewItem == bookmark",
+          "group": "inline"
+        },
+        {
+          "command": "codingHelper.removeBookmark",
+          "when": "view == codingHelper.bookmarks && viewItem == bookmark",
+          "group": "inline"
+        }
+      ]
+    },
+    "submenus": [
+      {
+        "id": "codingHelper.editorSubmenu",
+        "label": "Coding Helpers"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^16.18.126",
+    "@types/vscode": "^1.74.0",
+    "typescript": "^4.9.4",
+    "vsce": "^2.15.0"
+  },
+  "keywords": [
+    "coding",
+    "helper",
+    "vue",
+    "react",
+    "function",
+    "bookmark"
+  ],
+  "author": "Pxin Ding",
+  "license": "MIT",
+  "publisher": "coding-helper-dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/coding-helper"
+  },
+  "dependencies": {
+    "bumpp": "^10.2.0"
+  }
+}
