@@ -64,7 +64,7 @@ MIT License
 
 如果您喜欢这个项目并希望支持其持续发展，可以通过以下方式赞助：
 
-![微信](src/images/wx-pay.png)
+<img src="src/images/wx-pay.png" width="200">
 
 您的支持将帮助我们保持项目更新和维护。谢谢！
 
