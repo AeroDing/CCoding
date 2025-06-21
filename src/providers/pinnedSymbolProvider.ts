@@ -428,25 +428,50 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
 
     private loadPinnedSymbols() {
         try {
-            const saved = this.context.globalState.get<PinnedSymbol[]>('CCoding.pinnedSymbols', []);
+            const saved = this.context.globalState.get<any[]>('CCoding.pinnedSymbols', []);
+            console.log('Loading pinned symbols from globalState:', saved.length, 'items');
+            
             this.pinnedSymbols = saved
                 .filter(s => this.isValidPinnedSymbol(s))
-                .map(s => ({
-                    ...s,
-                    uri: vscode.Uri.parse(s.uri.toString()),
-                    range: new vscode.Range(
-                        new vscode.Position(s.range.start.line, s.range.start.character),
-                        new vscode.Position(s.range.end.line, s.range.end.character)
-                    )
-                }));
+                .map(s => {
+                    try {
+                        // 确保 URI 对象正确重建
+                        const uri = typeof s.uri === 'string' ? vscode.Uri.parse(s.uri) : 
+                                   (s.uri && s.uri.scheme ? vscode.Uri.parse(s.uri.toString()) : vscode.Uri.parse(s.uri));
+                        
+                        // 确保 Range 对象正确重建
+                        const range = new vscode.Range(
+                            new vscode.Position(
+                                s.range?.start?.line || 0, 
+                                s.range?.start?.character || 0
+                            ),
+                            new vscode.Position(
+                                s.range?.end?.line || 0, 
+                                s.range?.end?.character || 0
+                            )
+                        );
+
+                        return {
+                            id: s.id || Date.now().toString(),
+                            name: s.name || 'Unknown Symbol',
+                            kind: typeof s.kind === 'number' ? s.kind : vscode.SymbolKind.Function,
+                            uri: uri,
+                            range: range,
+                            timestamp: s.timestamp || Date.now()
+                        };
+                    } catch (itemError) {
+                        console.error('Error processing pinned symbol item:', itemError, s);
+                        return null;
+                    }
+                })
+                .filter(s => s !== null) as PinnedSymbol[];
             
+            console.log('Successfully loaded pinned symbols:', this.pinnedSymbols.length);
             vscode.commands.executeCommand('setContext', 'CCoding.hasPinnedSymbols', this.pinnedSymbols.length > 0);
         } catch (error) {
             console.error('Error loading pinned symbols:', error);
-            // 如果加载失败，重置为空数组
+            // 如果加载失败，重置为空数组但不清除原数据（可能是临时错误）
             this.pinnedSymbols = [];
-            // 清除损坏的数据
-            this.context.globalState.update('CCoding.pinnedSymbols', []);
             vscode.commands.executeCommand('setContext', 'CCoding.hasPinnedSymbols', false);
         }
     }
@@ -456,34 +481,28 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
      * @param symbol 要验证的符号数据
      * @returns 是否有效
      */
-    private isValidPinnedSymbol(symbol: any): symbol is PinnedSymbol {
+    private isValidPinnedSymbol(symbol: any): boolean {
         if (!symbol || typeof symbol !== 'object') {
             return false;
         }
 
-        // 检查必需的属性
-        if (!symbol.id || !symbol.name || typeof symbol.kind !== 'number') {
+        // 检查必需的属性（放宽验证条件）
+        if (!symbol.id || !symbol.name) {
             return false;
         }
 
-        // 检查 URI
+        // 检查 URI（支持多种格式）
         if (!symbol.uri) {
             return false;
         }
 
-        // 检查 range 对象的完整性
-        if (!symbol.range || 
-            !symbol.range.start || 
-            !symbol.range.end ||
-            typeof symbol.range.start.line !== 'number' ||
-            typeof symbol.range.start.character !== 'number' ||
-            typeof symbol.range.end.line !== 'number' ||
-            typeof symbol.range.end.character !== 'number') {
+        // 检查 range 对象的完整性（提供默认值）
+        if (!symbol.range) {
             return false;
         }
 
-        // 检查时间戳
-        if (!symbol.timestamp || typeof symbol.timestamp !== 'number') {
+        // 放宽range验证，只要有基本结构即可
+        if (!symbol.range.start && !symbol.range.end) {
             return false;
         }
 
@@ -491,7 +510,37 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
     }
 
     private savePinnedSymbols() {
-        this.context.globalState.update('CCoding.pinnedSymbols', this.pinnedSymbols);
+        try {
+            // 序列化数据，确保 URI 和 Range 对象被正确转换
+            const serializedSymbols = this.pinnedSymbols.map(symbol => ({
+                id: symbol.id,
+                name: symbol.name,
+                kind: symbol.kind,
+                uri: symbol.uri.toString(), // 确保 URI 被序列化为字符串
+                range: {
+                    start: {
+                        line: symbol.range.start.line,
+                        character: symbol.range.start.character
+                    },
+                    end: {
+                        line: symbol.range.end.line,
+                        character: symbol.range.end.character
+                    }
+                },
+                timestamp: symbol.timestamp
+            }));
+            
+            console.log('Saving pinned symbols to globalState:', serializedSymbols.length, 'items');
+            this.context.globalState.update('CCoding.pinnedSymbols', serializedSymbols);
+            
+            // 强制同步保存
+            if (this.context.globalState.setKeysForSync) {
+                this.context.globalState.setKeysForSync(['CCoding.pinnedSymbols']);
+            }
+        } catch (error) {
+            console.error('Error saving pinned symbols:', error);
+            vscode.window.showErrorMessage(`保存置顶符号数据失败: ${error}`);
+        }
     }
 
     /**
@@ -520,6 +569,43 @@ export class PinnedSymbolProvider implements vscode.TreeDataProvider<PinnedSymbo
     clearSearch(): void {
         this.searchQuery = '';
         this.refresh();
+    }
+
+    /**
+     * 公共方法：强制保存置顶符号数据
+     * @description 提供给外部调用的数据保存方法，确保数据持久化
+     */
+    public forceSave(): void {
+        this.savePinnedSymbols();
+    }
+
+    /**
+     * 公共方法：获取置顶符号数量
+     * @returns 当前置顶符号总数
+     */
+    public getPinnedSymbolCount(): number {
+        return this.pinnedSymbols.length;
+    }
+
+    /**
+     * 公共方法：检查数据状态
+     * @returns 数据健康状态信息
+     */
+    public getDataHealth(): { isHealthy: boolean; count: number; lastSaved: string } {
+        try {
+            const saved = this.context.globalState.get<any[]>('CCoding.pinnedSymbols', []);
+            return {
+                isHealthy: saved.length === this.pinnedSymbols.length,
+                count: this.pinnedSymbols.length,
+                lastSaved: new Date().toISOString()
+            };
+        } catch (error) {
+            return {
+                isHealthy: false,
+                count: this.pinnedSymbols.length,
+                lastSaved: 'Error checking'
+            };
+        }
     }
 
     /**

@@ -91,6 +91,11 @@
         "title": "清空所有置顶符号",
         "category": "CCoding",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "CCoding.repairData",
+        "title": "修复数据",
+        "category": "CCoding"
       }
     ],
     "keybindings": [

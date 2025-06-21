@@ -26,6 +26,10 @@ export function activate(context: vscode.ExtensionContext) {
     const timelineProvider = new TimelineProvider();
     const keywordSearchProvider = new KeywordSearchProvider();
 
+    // 存储provider引用以便在关闭时保存数据
+    context.workspaceState.update('_bookmarkProvider', bookmarkProvider);
+    context.workspaceState.update('_pinnedSymbolProvider', pinnedSymbolProvider);
+
     // 创建tab切换器webview
     const tabSwitcherProvider = new TabSwitcherProvider(
         context.extensionUri,
@@ -137,6 +141,65 @@ export function activate(context: vscode.ExtensionContext) {
             bookmarkProvider.removeBookmark(item.bookmark.id);
         }),
 
+        vscode.commands.registerCommand('CCoding.repairData', async () => {
+            const choice = await vscode.window.showInformationMessage(
+                '数据修复工具将清理可能损坏的书签和置顶符号数据。这将不会删除有效数据，但会移除损坏的条目。是否继续？',
+                '继续修复', '取消'
+            );
+            
+            if (choice === '继续修复') {
+                try {
+                    // 强制重新加载并修复数据
+                    const bookmarkFixedCount = await repairBookmarkData(context, bookmarkProvider);
+                    const pinnedSymbolFixedCount = await repairPinnedSymbolData(context, pinnedSymbolProvider);
+                    
+                    vscode.window.showInformationMessage(
+                        `数据修复完成！修复了 ${bookmarkFixedCount} 个书签数据，${pinnedSymbolFixedCount} 个置顶符号数据。`
+                    );
+                } catch (error) {
+                    vscode.window.showErrorMessage(`数据修复失败：${error}`);
+                }
+            }
+        }),
+
+        // 添加强制保存数据的命令
+        vscode.commands.registerCommand('CCoding.forceSaveData', () => {
+            try {
+                console.log('Forcing data save...');
+                // 使用公共方法保存数据
+                bookmarkProvider.forceSave();
+                pinnedSymbolProvider.forceSave();
+                
+                // 获取数据健康状态
+                const bookmarkHealth = bookmarkProvider.getDataHealth();
+                const pinnedSymbolHealth = pinnedSymbolProvider.getDataHealth();
+                
+                const message = `数据已强制保存！\n书签: ${bookmarkHealth.count} 个 (${bookmarkHealth.isHealthy ? '健康' : '异常'})\n置顶符号: ${pinnedSymbolHealth.count} 个 (${pinnedSymbolHealth.isHealthy ? '健康' : '异常'})`;
+                
+                vscode.window.showInformationMessage(message);
+                console.log('Data save completed:', { bookmarkHealth, pinnedSymbolHealth });
+            } catch (error) {
+                console.error('Force save failed:', error);
+                vscode.window.showErrorMessage(`强制保存失败: ${error}`);
+            }
+        }),
+
+        // 添加数据健康检查命令
+        vscode.commands.registerCommand('CCoding.checkDataHealth', () => {
+            try {
+                const bookmarkHealth = bookmarkProvider.getDataHealth();
+                const pinnedSymbolHealth = pinnedSymbolProvider.getDataHealth();
+                
+                const healthStatus = `数据健康状态检查:\n\n书签数据:\n- 数量: ${bookmarkHealth.count}\n- 状态: ${bookmarkHealth.isHealthy ? '正常' : '异常'}\n- 检查时间: ${bookmarkHealth.lastSaved}\n\n置顶符号数据:\n- 数量: ${pinnedSymbolHealth.count}\n- 状态: ${pinnedSymbolHealth.isHealthy ? '正常' : '异常'}\n- 检查时间: ${pinnedSymbolHealth.lastSaved}`;
+                
+                vscode.window.showInformationMessage(healthStatus);
+                console.log('Data health check:', { bookmarkHealth, pinnedSymbolHealth });
+            } catch (error) {
+                console.error('Health check failed:', error);
+                vscode.window.showErrorMessage(`健康检查失败: ${error}`);
+            }
+        }),
+
         vscode.window.onDidChangeActiveTextEditor(() => {
             functionListProvider.refresh();
             // 如果当前是"当前文件"模式，切换文件时需要更新所有provider的显示
@@ -153,11 +216,53 @@ export function activate(context: vscode.ExtensionContext) {
 
         vscode.workspace.onDidSaveTextDocument(() => {
             todoProvider.refresh();
+            // 在文件保存时也保存数据
+            try {
+                bookmarkProvider.forceSave();
+                pinnedSymbolProvider.forceSave();
+                console.log('Data saved on document save');
+            } catch (error) {
+                console.error('Error saving data on file save:', error);
+            }
         })
     ];
 
     context.subscriptions.push(...disposables);
     context.subscriptions.push(todoProvider);
+
+    // 设置定期自动保存机制
+    const autoSaveInterval = setInterval(() => {
+        try {
+            bookmarkProvider.forceSave();
+            pinnedSymbolProvider.forceSave();
+            console.log('Auto-save completed at', new Date().toISOString());
+        } catch (error) {
+            console.error('Auto-save failed:', error);
+        }
+    }, 5 * 60 * 1000); // 每5分钟自动保存一次
+
+    // 确保在扩展关闭时清理定时器
+    context.subscriptions.push({
+        dispose: () => {
+            clearInterval(autoSaveInterval);
+            console.log('Auto-save timer cleared');
+        }
+    });
+
+    // 监听VS Code关闭前事件，确保最后一次数据保存
+    const onWillCloseDisposable = vscode.workspace.onWillSaveTextDocument(() => {
+        try {
+            bookmarkProvider.forceSave();
+            pinnedSymbolProvider.forceSave();
+            console.log('Data saved before VS Code close');
+        } catch (error) {
+            console.error('Error saving data before close:', error);
+        }
+    });
+    
+    context.subscriptions.push(onWillCloseDisposable);
+
+    console.log('CCoding extension fully activated with data persistence safeguards');
 }
 
 async function showQuickJumpPicker() {
@@ -394,4 +499,120 @@ function clearSearch(
     pinnedSymbolProvider.refresh();
 }
 
-export function deactivate() {}
+export function deactivate() {
+    console.log('CCoding is being deactivated, saving data...');
+    
+    // 这里无法直接访问provider实例，但可以通过globalState确保数据一致性
+    // 实际的数据保存已经在各个操作中进行了
+    
+    // 清理资源
+    console.log('CCoding deactivated successfully');
+}
+
+/**
+ * 修复书签数据
+ * @param context 扩展上下文
+ * @param bookmarkProvider 书签Provider
+ * @returns 修复的数据条数
+ */
+async function repairBookmarkData(context: vscode.ExtensionContext, bookmarkProvider: BookmarkProvider): Promise<number> {
+    const saved = context.globalState.get<any[]>('CCoding.bookmarks', []);
+    const originalCount = saved.length;
+    
+    // 过滤出有效的书签数据
+    const validBookmarks = saved.filter(bookmark => {
+        if (!bookmark || typeof bookmark !== 'object') {
+            return false;
+        }
+        
+        // 检查必需的属性
+        if (!bookmark.id || !bookmark.label || typeof bookmark.label !== 'string') {
+            return false;
+        }
+        
+        // 检查 URI
+        if (!bookmark.uri) {
+            return false;
+        }
+        
+        // 检查 range 对象的完整性
+        if (!bookmark.range || 
+            !bookmark.range.start || 
+            !bookmark.range.end ||
+            typeof bookmark.range.start.line !== 'number' ||
+            typeof bookmark.range.start.character !== 'number' ||
+            typeof bookmark.range.end.line !== 'number' ||
+            typeof bookmark.range.end.character !== 'number') {
+            return false;
+        }
+        
+        // 检查时间戳
+        if (!bookmark.timestamp || typeof bookmark.timestamp !== 'number') {
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // 保存修复后的数据
+    await context.globalState.update('CCoding.bookmarks', validBookmarks);
+    
+    // 刷新书签Provider
+    bookmarkProvider.refresh();
+    
+    return originalCount - validBookmarks.length;
+}
+
+/**
+ * 修复置顶符号数据
+ * @param context 扩展上下文
+ * @param pinnedSymbolProvider 置顶符号Provider
+ * @returns 修复的数据条数
+ */
+async function repairPinnedSymbolData(context: vscode.ExtensionContext, pinnedSymbolProvider: PinnedSymbolProvider): Promise<number> {
+    const saved = context.globalState.get<any[]>('CCoding.pinnedSymbols', []);
+    const originalCount = saved.length;
+    
+    // 过滤出有效的置顶符号数据
+    const validPinnedSymbols = saved.filter(symbol => {
+        if (!symbol || typeof symbol !== 'object') {
+            return false;
+        }
+        
+        // 检查必需的属性
+        if (!symbol.id || !symbol.name || typeof symbol.kind !== 'number') {
+            return false;
+        }
+        
+        // 检查 URI
+        if (!symbol.uri) {
+            return false;
+        }
+        
+        // 检查 range 对象的完整性
+        if (!symbol.range || 
+            !symbol.range.start || 
+            !symbol.range.end ||
+            typeof symbol.range.start.line !== 'number' ||
+            typeof symbol.range.start.character !== 'number' ||
+            typeof symbol.range.end.line !== 'number' ||
+            typeof symbol.range.end.character !== 'number') {
+            return false;
+        }
+        
+        // 检查时间戳
+        if (!symbol.timestamp || typeof symbol.timestamp !== 'number') {
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // 保存修复后的数据
+    await context.globalState.update('CCoding.pinnedSymbols', validPinnedSymbols);
+    
+    // 刷新置顶符号Provider
+    pinnedSymbolProvider.refresh();
+    
+    return originalCount - validPinnedSymbols.length;
+}

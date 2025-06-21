@@ -281,20 +281,118 @@ export class BookmarkProvider implements vscode.TreeDataProvider<BookmarkItem> {
     }
 
     private loadBookmarks() {
-        const saved = this.context.globalState.get<Bookmark[]>('CCoding.bookmarks', []);
-        this.bookmarks = saved.map(b => ({
-            ...b,
-            uri: vscode.Uri.parse(b.uri.toString()),
-            range: new vscode.Range(
-                new vscode.Position(b.range.start.line, b.range.start.character),
-                new vscode.Position(b.range.end.line, b.range.end.character)
-            )
-        }));
-        vscode.commands.executeCommand('setContext', 'CCoding.hasBookmarks', this.bookmarks.length > 0);
+        try {
+            const saved = this.context.globalState.get<any[]>('CCoding.bookmarks', []);
+            console.log('Loading bookmarks from globalState:', saved.length, 'items');
+            
+            this.bookmarks = saved
+                .filter(b => this.isValidBookmark(b))
+                .map(b => {
+                    try {
+                        // 确保 URI 对象正确重建
+                        const uri = typeof b.uri === 'string' ? vscode.Uri.parse(b.uri) : 
+                                   (b.uri && b.uri.scheme ? vscode.Uri.parse(b.uri.toString()) : vscode.Uri.parse(b.uri));
+                        
+                        // 确保 Range 对象正确重建
+                        const range = new vscode.Range(
+                            new vscode.Position(
+                                b.range?.start?.line || 0, 
+                                b.range?.start?.character || 0
+                            ),
+                            new vscode.Position(
+                                b.range?.end?.line || 0, 
+                                b.range?.end?.character || 0
+                            )
+                        );
+
+                        return {
+                            id: b.id || Date.now().toString(),
+                            label: b.label || 'Unknown Bookmark',
+                            uri: uri,
+                            range: range,
+                            timestamp: b.timestamp || Date.now()
+                        };
+                    } catch (itemError) {
+                        console.error('Error processing bookmark item:', itemError, b);
+                        return null;
+                    }
+                })
+                .filter(b => b !== null) as Bookmark[];
+            
+            console.log('Successfully loaded bookmarks:', this.bookmarks.length);
+            vscode.commands.executeCommand('setContext', 'CCoding.hasBookmarks', this.bookmarks.length > 0);
+        } catch (error) {
+            console.error('Error loading bookmarks:', error);
+            // 如果加载失败，重置为空数组但不清除原数据（可能是临时错误）
+            this.bookmarks = [];
+            vscode.commands.executeCommand('setContext', 'CCoding.hasBookmarks', false);
+        }
+    }
+
+    /**
+     * 验证书签数据的完整性
+     * @param bookmark 要验证的书签数据
+     * @returns 是否有效
+     */
+    private isValidBookmark(bookmark: any): boolean {
+        if (!bookmark || typeof bookmark !== 'object') {
+            return false;
+        }
+
+        // 检查必需的属性（放宽验证条件）
+        if (!bookmark.id || !bookmark.label || typeof bookmark.label !== 'string') {
+            return false;
+        }
+
+        // 检查 URI（支持多种格式）
+        if (!bookmark.uri) {
+            return false;
+        }
+
+        // 检查 range 对象的完整性（提供默认值）
+        if (!bookmark.range) {
+            return false;
+        }
+
+        // 放宽range验证，只要有基本结构即可
+        if (!bookmark.range.start && !bookmark.range.end) {
+            return false;
+        }
+
+        return true;
     }
 
     private saveBookmarks() {
-        this.context.globalState.update('CCoding.bookmarks', this.bookmarks);
+        try {
+            // 序列化数据，确保 URI 和 Range 对象被正确转换
+            const serializedBookmarks = this.bookmarks.map(bookmark => ({
+                id: bookmark.id,
+                label: bookmark.label,
+                uri: bookmark.uri.toString(), // 确保 URI 被序列化为字符串
+                range: {
+                    start: {
+                        line: bookmark.range.start.line,
+                        character: bookmark.range.start.character
+                    },
+                    end: {
+                        line: bookmark.range.end.line,
+                        character: bookmark.range.end.character
+                    }
+                },
+                timestamp: bookmark.timestamp
+            }));
+            
+            console.log('Saving bookmarks to globalState:', serializedBookmarks.length, 'items');
+            this.context.globalState.update('CCoding.bookmarks', serializedBookmarks);
+            
+            // 强制同步保存
+            if (this.context.globalState.setKeysForSync) {
+                this.context.globalState.setKeysForSync(['CCoding.bookmarks']);
+            }
+        } catch (error) {
+            console.error('Error saving bookmarks:', error);
+            vscode.window.showErrorMessage(`保存书签数据失败: ${error}`);
+        }
     }
 
     /**
@@ -324,25 +422,74 @@ export class BookmarkProvider implements vscode.TreeDataProvider<BookmarkItem> {
         this.searchQuery = '';
         this.refresh();
     }
+
+    /**
+     * 公共方法：强制保存书签数据
+     * @description 提供给外部调用的数据保存方法，确保数据持久化
+     */
+    public forceSave(): void {
+        this.saveBookmarks();
+    }
+
+    /**
+     * 公共方法：获取书签数量
+     * @returns 当前书签总数
+     */
+    public getBookmarkCount(): number {
+        return this.bookmarks.length;
+    }
+
+    /**
+     * 公共方法：检查数据状态
+     * @returns 数据健康状态信息
+     */
+    public getDataHealth(): { isHealthy: boolean; count: number; lastSaved: string } {
+        try {
+            const saved = this.context.globalState.get<any[]>('CCoding.bookmarks', []);
+            return {
+                isHealthy: saved.length === this.bookmarks.length,
+                count: this.bookmarks.length,
+                lastSaved: new Date().toISOString()
+            };
+        } catch (error) {
+            return {
+                isHealthy: false,
+                count: this.bookmarks.length,
+                lastSaved: 'Error checking'
+            };
+        }
+    }
 }
 
 class BookmarkItem extends vscode.TreeItem {
     constructor(public readonly bookmark: Bookmark) {
         super(bookmark.label, vscode.TreeItemCollapsibleState.None);
 
-        const fileName = vscode.workspace.asRelativePath(bookmark.uri);
-        this.tooltip = `${bookmark.label} in ${fileName} (Line ${bookmark.range.start.line + 1})`;
-        this.description = `${fileName}:${bookmark.range.start.line + 1}`;
-        
-        this.command = {
-            command: 'vscode.open',
-            title: 'Open',
-            arguments: [bookmark.uri, {
-                selection: bookmark.range
-            }]
-        };
+        try {
+            const fileName = vscode.workspace.asRelativePath(bookmark.uri);
+            const lineNumber = bookmark.range?.start?.line ? bookmark.range.start.line + 1 : 1;
+            
+            this.tooltip = `${bookmark.label} in ${fileName} (Line ${lineNumber})`;
+            this.description = `${fileName}:${lineNumber}`;
+            
+            this.command = {
+                command: 'vscode.open',
+                title: 'Open',
+                arguments: [bookmark.uri, {
+                    selection: bookmark.range
+                }]
+            };
 
-        this.iconPath = new vscode.ThemeIcon('bookmark');
-        this.contextValue = 'bookmark';
+            this.iconPath = new vscode.ThemeIcon('bookmark');
+            this.contextValue = 'bookmark';
+        } catch (error) {
+            console.error('Error creating BookmarkItem:', error);
+            // 创建一个安全的fallback显示
+            this.label = bookmark.label || '错误的书签';
+            this.description = '数据损坏';
+            this.tooltip = '此书签数据已损坏，请使用数据修复工具进行修复';
+            this.iconPath = new vscode.ThemeIcon('error');
+            this.contextValue = 'bookmark';
+        }
     }
 }
