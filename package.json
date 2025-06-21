@@ -2,7 +2,7 @@
   "name": "CCoding",
   "displayName": "CCoding",
   "description": "A comprehensive coding assistant with function lists, bookmarks, quick navigation, symbol pinning, todo lists, timeline, and keyword search for Vue/React development",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -215,8 +215,7 @@
     "build": "npm run compile && npm run package",
     "bumpp": "bumpp",
     "publish": "vsce publish",
-    "prebumpp": "npm run build",
-    "postbumpp": "npx vsce package --out CCoding-$(node -p \"require('./package.json').version\").vsix && echo '🎉 版本发布完成！' && echo '📦 本地生成文件: CCoding-$(node -p \"require('./package.json').version\").vsix' && echo '🚀 GitHub Actions 将自动创建 Release 并上传文件'"
+    "postbumpp": "npm run compile && npx vsce package --out CCoding-$(node -p \"require('./package.json').version\").vsix && echo '🎉 版本发布完成！' && echo '📦 本地生成文件: CCoding-$(node -p \"require('./package.json').version\").vsix' && echo '🚀 GitHub Actions 将自动创建 Release 并上传文件'"
   },
   "devDependencies": {
     "@types/node": "^16.18.126",
