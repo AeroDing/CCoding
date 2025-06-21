@@ -2,7 +2,6 @@
   "publisher": "AeroDing",
   "name": "CCoding",
   "displayName": "CCoding",
-  "type": "module",
   "version": "0.2.3",
   "description": "A comprehensive coding assistant with function lists, bookmarks, quick navigation, symbol pinning, todo lists, timeline, and keyword search for Vue/React development",
   "author": "Pxin Ding",
