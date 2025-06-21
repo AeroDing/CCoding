@@ -15,254 +15,186 @@ let searchQuery = '';
 export function activate(context: vscode.ExtensionContext) {
     console.log('CCoding is now active!');
 
-    // 设置初始上下文
-    vscode.commands.executeCommand('setContext', 'CCoding.currentTab', currentTab);
-    vscode.commands.executeCommand('setContext', 'CCoding.hasActiveSearch', hasActiveSearch);
+    try {
+        // 设置初始上下文
+        vscode.commands.executeCommand('setContext', 'CCoding.currentTab', currentTab);
+        vscode.commands.executeCommand('setContext', 'CCoding.hasActiveSearch', hasActiveSearch);
 
-    const functionListProvider = new FunctionListProvider();
-    const bookmarkProvider = new BookmarkProvider(context);
-    const todoProvider = new TodoProvider();
-    const pinnedSymbolProvider = new PinnedSymbolProvider(context);
-    const timelineProvider = new TimelineProvider();
-    const keywordSearchProvider = new KeywordSearchProvider();
+        const functionListProvider = new FunctionListProvider();
+        const bookmarkProvider = new BookmarkProvider(context);
+        const todoProvider = new TodoProvider();
+        const pinnedSymbolProvider = new PinnedSymbolProvider(context);
+        const timelineProvider = new TimelineProvider();
+        const keywordSearchProvider = new KeywordSearchProvider();
 
-    // 存储provider引用以便在关闭时保存数据
-    context.workspaceState.update('_bookmarkProvider', bookmarkProvider);
-    context.workspaceState.update('_pinnedSymbolProvider', pinnedSymbolProvider);
+        // Provider初始化完成
 
-    // 创建tab切换器webview
-    const tabSwitcherProvider = new TabSwitcherProvider(
-        context.extensionUri,
-        (tab: 'current' | 'all') => {
-            switchTab(tab, tabSwitcherProvider, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider);
-        },
-        (query: string, scope: 'current' | 'all', searchType: string) => {
-            performSearch(scope, searchType, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider, keywordSearchProvider, query);
-        }
-    );
-
-    // 注册webview provider
-    context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider(TabSwitcherProvider.viewType, tabSwitcherProvider)
-    );
-
-    const functionListTreeView = vscode.window.createTreeView('CCoding.functionList', {
-        treeDataProvider: functionListProvider,
-        showCollapseAll: true
-    });
-
-    // 默认聚焦到控制面板
-    setTimeout(() => {
-        vscode.commands.executeCommand('CCoding.tabSwitcher.focus');
-    }, 500);
-
-    vscode.window.createTreeView('CCoding.bookmarks', {
-        treeDataProvider: bookmarkProvider,
-        showCollapseAll: true
-    });
-
-    vscode.window.createTreeView('CCoding.todos', {
-        treeDataProvider: todoProvider,
-        showCollapseAll: true
-    });
-
-    vscode.window.createTreeView('CCoding.pinnedSymbols', {
-        treeDataProvider: pinnedSymbolProvider,
-        showCollapseAll: true
-    });
-
-    const disposables = [
-        vscode.commands.registerCommand('CCoding.showFunctionList', () => {
-            functionListProvider.refresh();
-        }),
-
-        vscode.commands.registerCommand('CCoding.addBookmark', () => {
-            bookmarkProvider.addBookmark();
-        }),
-
-        vscode.commands.registerCommand('CCoding.showBookmarks', () => {
-            bookmarkProvider.refresh();
-        }),
-
-        vscode.commands.registerCommand('CCoding.quickJump', () => {
-            showQuickJumpPicker();
-        }),
-
-        vscode.commands.registerCommand('CCoding.pinSymbol', () => {
-            pinnedSymbolProvider.pinCurrentSymbol();
-        }),
-
-        vscode.commands.registerCommand('CCoding.showTodos', () => {
-            todoProvider.forceRefresh();
-        }),
-
-        vscode.commands.registerCommand('CCoding.showTimeline', () => {
-            timelineProvider.showTimeline();
-        }),
-
-        vscode.commands.registerCommand('CCoding.searchKeywords', () => {
-            keywordSearchProvider.searchKeywords();
-        }),
-
-        vscode.commands.registerCommand('CCoding.clearSearch', () => {
-            clearSearch(tabSwitcherProvider, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider);
-        }),
-
-        vscode.commands.registerCommand('CCoding.testSearch', () => {
-            // 测试搜索功能，确保没有弹窗
-            performSearch('current', 'all', functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider, keywordSearchProvider, 'test');
-        }),
-
-        vscode.commands.registerCommand('CCoding.addBookmarkFromContext', (uri: vscode.Uri) => {
-            bookmarkProvider.addBookmarkFromContext(uri);
-        }),
-
-        vscode.commands.registerCommand('CCoding.addBookmarkFromEditor', () => {
-            bookmarkProvider.addBookmarkFromEditor();
-        }),
-
-        vscode.commands.registerCommand('CCoding.pinSymbolFromEditor', () => {
-            pinnedSymbolProvider.pinCurrentSymbol();
-        }),
-
-        vscode.commands.registerCommand('CCoding.unpinSymbol', (item: any) => {
-            pinnedSymbolProvider.unpinSymbol(item.pinnedSymbol.id);
-        }),
-
-        vscode.commands.registerCommand('CCoding.clearAllPinnedSymbols', () => {
-            pinnedSymbolProvider.clearAllPinnedSymbols();
-        }),
-
-        vscode.commands.registerCommand('CCoding.editBookmark', (item: any) => {
-            bookmarkProvider.editBookmark(item.bookmark.id);
-        }),
-
-        vscode.commands.registerCommand('CCoding.removeBookmark', (item: any) => {
-            bookmarkProvider.removeBookmark(item.bookmark.id);
-        }),
-
-        vscode.commands.registerCommand('CCoding.repairData', async () => {
-            const choice = await vscode.window.showInformationMessage(
-                '数据修复工具将清理可能损坏的书签和置顶符号数据。这将不会删除有效数据，但会移除损坏的条目。是否继续？',
-                '继续修复', '取消'
-            );
-            
-            if (choice === '继续修复') {
-                try {
-                    // 强制重新加载并修复数据
-                    const bookmarkFixedCount = await repairBookmarkData(context, bookmarkProvider);
-                    const pinnedSymbolFixedCount = await repairPinnedSymbolData(context, pinnedSymbolProvider);
-                    
-                    vscode.window.showInformationMessage(
-                        `数据修复完成！修复了 ${bookmarkFixedCount} 个书签数据，${pinnedSymbolFixedCount} 个置顶符号数据。`
-                    );
-                } catch (error) {
-                    vscode.window.showErrorMessage(`数据修复失败：${error}`);
-                }
+        // 创建tab切换器webview
+        const tabSwitcherProvider = new TabSwitcherProvider(
+            context.extensionUri,
+            (tab: 'current' | 'all') => {
+                switchTab(tab, tabSwitcherProvider, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider);
+            },
+            (query: string, scope: 'current' | 'all', searchType: string) => {
+                performSearch(scope, searchType, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider, keywordSearchProvider, query);
             }
-        }),
+        );
 
-        // 添加强制保存数据的命令
-        vscode.commands.registerCommand('CCoding.forceSaveData', () => {
+        // 注册webview provider
+        context.subscriptions.push(
+            vscode.window.registerWebviewViewProvider(TabSwitcherProvider.viewType, tabSwitcherProvider)
+        );
+
+        const functionListTreeView = vscode.window.createTreeView('CCoding.functionList', {
+            treeDataProvider: functionListProvider,
+            showCollapseAll: true
+        });
+
+        // 延迟聚焦到控制面板，避免初始化冲突
+        setTimeout(() => {
             try {
-                console.log('Forcing data save...');
-                // 使用公共方法保存数据
-                bookmarkProvider.forceSave();
-                pinnedSymbolProvider.forceSave();
-                
-                // 获取数据健康状态
-                const bookmarkHealth = bookmarkProvider.getDataHealth();
-                const pinnedSymbolHealth = pinnedSymbolProvider.getDataHealth();
-                
-                const message = `数据已强制保存！\n书签: ${bookmarkHealth.count} 个 (${bookmarkHealth.isHealthy ? '健康' : '异常'})\n置顶符号: ${pinnedSymbolHealth.count} 个 (${pinnedSymbolHealth.isHealthy ? '健康' : '异常'})`;
-                
-                vscode.window.showInformationMessage(message);
-                console.log('Data save completed:', { bookmarkHealth, pinnedSymbolHealth });
+                vscode.commands.executeCommand('CCoding.tabSwitcher.focus');
             } catch (error) {
-                console.error('Force save failed:', error);
-                vscode.window.showErrorMessage(`强制保存失败: ${error}`);
+                console.warn('Failed to focus tab switcher:', error);
             }
-        }),
+        }, 1000); // 增加延迟时间到1000ms
 
-        // 添加数据健康检查命令
-        vscode.commands.registerCommand('CCoding.checkDataHealth', () => {
-            try {
-                const bookmarkHealth = bookmarkProvider.getDataHealth();
-                const pinnedSymbolHealth = pinnedSymbolProvider.getDataHealth();
-                
-                const healthStatus = `数据健康状态检查:\n\n书签数据:\n- 数量: ${bookmarkHealth.count}\n- 状态: ${bookmarkHealth.isHealthy ? '正常' : '异常'}\n- 检查时间: ${bookmarkHealth.lastSaved}\n\n置顶符号数据:\n- 数量: ${pinnedSymbolHealth.count}\n- 状态: ${pinnedSymbolHealth.isHealthy ? '正常' : '异常'}\n- 检查时间: ${pinnedSymbolHealth.lastSaved}`;
-                
-                vscode.window.showInformationMessage(healthStatus);
-                console.log('Data health check:', { bookmarkHealth, pinnedSymbolHealth });
-            } catch (error) {
-                console.error('Health check failed:', error);
-                vscode.window.showErrorMessage(`健康检查失败: ${error}`);
-            }
-        }),
+        vscode.window.createTreeView('CCoding.bookmarks', {
+            treeDataProvider: bookmarkProvider,
+            showCollapseAll: true
+        });
 
-        vscode.window.onDidChangeActiveTextEditor(() => {
-            functionListProvider.refresh();
-            // 如果当前是"当前文件"模式，切换文件时需要更新所有provider的显示
-            if (currentTab === 'current') {
-                todoProvider.refresh();
+        vscode.window.createTreeView('CCoding.todos', {
+            treeDataProvider: todoProvider,
+            showCollapseAll: true
+        });
+
+        vscode.window.createTreeView('CCoding.pinnedSymbols', {
+            treeDataProvider: pinnedSymbolProvider,
+            showCollapseAll: true
+        });
+
+        const disposables = [
+            vscode.commands.registerCommand('CCoding.showFunctionList', () => {
+                functionListProvider.refresh();
+            }),
+
+            vscode.commands.registerCommand('CCoding.addBookmark', () => {
+                bookmarkProvider.addBookmark();
+            }),
+
+            vscode.commands.registerCommand('CCoding.showBookmarks', () => {
                 bookmarkProvider.refresh();
-                pinnedSymbolProvider.refresh();
-            }
-        }),
+            }),
 
-        vscode.workspace.onDidChangeTextDocument((event) => {
-            functionListProvider.refresh();
-        }),
+            vscode.commands.registerCommand('CCoding.quickJump', () => {
+                showQuickJumpPicker();
+            }),
 
-        vscode.workspace.onDidSaveTextDocument(() => {
-            todoProvider.refresh();
-            // 在文件保存时也保存数据
-            try {
-                bookmarkProvider.forceSave();
-                pinnedSymbolProvider.forceSave();
-                console.log('Data saved on document save');
-            } catch (error) {
-                console.error('Error saving data on file save:', error);
-            }
-        })
-    ];
+            vscode.commands.registerCommand('CCoding.pinSymbol', () => {
+                pinnedSymbolProvider.pinCurrentSymbol();
+            }),
 
-    context.subscriptions.push(...disposables);
-    context.subscriptions.push(todoProvider);
+            vscode.commands.registerCommand('CCoding.showTodos', () => {
+                todoProvider.forceRefresh();
+            }),
 
-    // 设置定期自动保存机制
-    const autoSaveInterval = setInterval(() => {
-        try {
-            bookmarkProvider.forceSave();
-            pinnedSymbolProvider.forceSave();
-            console.log('Auto-save completed at', new Date().toISOString());
-        } catch (error) {
-            console.error('Auto-save failed:', error);
-        }
-    }, 5 * 60 * 1000); // 每5分钟自动保存一次
+            vscode.commands.registerCommand('CCoding.showTimeline', () => {
+                timelineProvider.showTimeline();
+            }),
 
-    // 确保在扩展关闭时清理定时器
-    context.subscriptions.push({
-        dispose: () => {
-            clearInterval(autoSaveInterval);
-            console.log('Auto-save timer cleared');
-        }
-    });
+            vscode.commands.registerCommand('CCoding.searchKeywords', () => {
+                keywordSearchProvider.searchKeywords();
+            }),
 
-    // 监听VS Code关闭前事件，确保最后一次数据保存
-    const onWillCloseDisposable = vscode.workspace.onWillSaveTextDocument(() => {
-        try {
-            bookmarkProvider.forceSave();
-            pinnedSymbolProvider.forceSave();
-            console.log('Data saved before VS Code close');
-        } catch (error) {
-            console.error('Error saving data before close:', error);
-        }
-    });
-    
-    context.subscriptions.push(onWillCloseDisposable);
+            vscode.commands.registerCommand('CCoding.clearSearch', () => {
+                clearSearch(tabSwitcherProvider, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider);
+            }),
 
-    console.log('CCoding extension fully activated with data persistence safeguards');
+            vscode.commands.registerCommand('CCoding.testSearch', () => {
+                // 测试搜索功能，确保没有弹窗
+                performSearch('current', 'all', functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider, keywordSearchProvider, 'test');
+            }),
+
+            vscode.commands.registerCommand('CCoding.addBookmarkFromContext', (uri: vscode.Uri) => {
+                bookmarkProvider.addBookmarkFromContext(uri);
+            }),
+
+            vscode.commands.registerCommand('CCoding.addBookmarkFromEditor', () => {
+                bookmarkProvider.addBookmarkFromEditor();
+            }),
+
+            vscode.commands.registerCommand('CCoding.pinSymbolFromEditor', () => {
+                pinnedSymbolProvider.pinCurrentSymbol();
+            }),
+
+            vscode.commands.registerCommand('CCoding.unpinSymbol', (item: any) => {
+                pinnedSymbolProvider.unpinSymbol(item.pinnedSymbol.id);
+            }),
+
+            vscode.commands.registerCommand('CCoding.clearAllPinnedSymbols', () => {
+                pinnedSymbolProvider.clearAllPinnedSymbols();
+            }),
+
+            vscode.commands.registerCommand('CCoding.editBookmark', (item: any) => {
+                bookmarkProvider.editBookmark(item.bookmark.id);
+            }),
+
+            vscode.commands.registerCommand('CCoding.removeBookmark', (item: any) => {
+                bookmarkProvider.removeBookmark(item.bookmark.id);
+            }),
+
+            vscode.commands.registerCommand('CCoding.repairData', async () => {
+                const choice = await vscode.window.showInformationMessage(
+                    '数据修复工具将清理可能损坏的书签和置顶符号数据。这将不会删除有效数据，但会移除损坏的条目。是否继续？',
+                    '继续修复', '取消'
+                );
+                
+                if (choice === '继续修复') {
+                    try {
+                        // 强制重新加载并修复数据
+                        const bookmarkFixedCount = await repairBookmarkData(context, bookmarkProvider);
+                        const pinnedSymbolFixedCount = await repairPinnedSymbolData(context, pinnedSymbolProvider);
+                        
+                        vscode.window.showInformationMessage(
+                            `数据修复完成！修复了 ${bookmarkFixedCount} 个书签数据，${pinnedSymbolFixedCount} 个置顶符号数据。`
+                        );
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`数据修复失败：${error}`);
+                    }
+                }
+            }),
+
+
+
+            vscode.window.onDidChangeActiveTextEditor(() => {
+                functionListProvider.refresh();
+                // 如果当前是"当前文件"模式，切换文件时需要更新所有provider的显示
+                if (currentTab === 'current') {
+                    todoProvider.refresh();
+                    bookmarkProvider.refresh();
+                    pinnedSymbolProvider.refresh();
+                }
+            }),
+
+            vscode.workspace.onDidChangeTextDocument((event) => {
+                functionListProvider.refresh();
+            }),
+
+            vscode.workspace.onDidSaveTextDocument(() => {
+                todoProvider.refresh();
+            })
+        ];
+
+        context.subscriptions.push(...disposables);
+        context.subscriptions.push(todoProvider);
+
+        console.log('CCoding activated successfully!');
+    } catch (error) {
+        console.error('Failed to activate CCoding extension:', error);
+        vscode.window.showErrorMessage(`CCoding扩展激活失败: ${error}`);
+        throw error;
+    }
 }
 
 async function showQuickJumpPicker() {

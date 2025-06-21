@@ -10,7 +10,9 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onCommand:CCoding.showFunctionList",
+    "onCommand:CCoding.addBookmark",
+    "onCommand:CCoding.quickJump"
   ],
   "icon": "icon.png",
   "main": "./out/extension.js",
