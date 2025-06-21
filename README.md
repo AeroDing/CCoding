@@ -55,6 +55,46 @@
 
 插件目前使用默认配置，后续版本将添加更多自定义选项。
 
+## 安装
+
+### 从 VSCode 插件市场安装
+1. 打开 VSCode
+2. 点击侧边栏的扩展图标（或按 `Ctrl+Shift+X`）
+3. 搜索 "CCoding"
+4. 点击安装
+
+### 从 VSIX 文件安装
+1. 从 [GitHub Releases](https://github.com/example/coding-helper/releases) 下载最新的 `.vsix` 文件
+2. 在 VSCode 中按 `Ctrl+Shift+P` 打开命令面板
+3. 输入 `Extensions: Install from VSIX...`
+4. 选择下载的 `.vsix` 文件进行安装
+
+## 开发
+
+### 本地开发
+```bash
+# 克隆项目
+git clone https://github.com/example/coding-helper.git
+cd coding-helper
+
+# 安装依赖
+npm install
+
+# 编译
+npm run compile
+
+# 在 VSCode 中按 F5 启动调试
+```
+
+### 构建和发布
+```bash
+# 构建插件包
+npm run build
+
+# 发布新版本（自动化）
+./scripts/release.sh 0.1.2
+```
+
 ## 贡献
 
 欢迎提交 Issue 和 Pull Request 来改进这个插件。
