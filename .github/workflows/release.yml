@@ -51,13 +51,11 @@ jobs:
             3. 输入 `Extensions: Install from VSIX...`
             4. 选择下载的 `.vsix` 文件进行安装
             
-            ### 📋 更新内容
-            请查看 [CHANGELOG.md](./CHANGELOG.md) 了解详细更新内容。
-            
             ---
             
             **完整源代码**: 请下载下方的 Source code 文件
             **直接安装**: 请下载 `CCoding-${{ github.ref_name }}.vsix` 文件
+          generate_release_notes: true
           draft: false
           prerelease: false
           files: |
