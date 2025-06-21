@@ -1,71 +1,71 @@
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode'
 
 /**
  * Tab切换器Provider - 使用WebView实现固定的搜索框和切换按钮
  */
 export class TabSwitcherProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'CCoding.tabSwitcher';
-    private _view?: vscode.WebviewView;
+  public static readonly viewType = 'CCoding.tabSwitcher'
+  private _view?: vscode.WebviewView
 
-    constructor(
-        private readonly _extensionUri: vscode.Uri,
-        private onTabSwitched: (tab: 'current' | 'all') => void,
-        private onSearchPerformed: (query: string, scope: 'current' | 'all', searchType: string) => void
-    ) {}
+  constructor(
+    private readonly _extensionUri: vscode.Uri,
+    private onTabSwitched: (tab: 'current' | 'all') => void,
+    private onSearchPerformed: (query: string, scope: 'current' | 'all', searchType: string) => void,
+  ) {}
 
-    public resolveWebviewView(
-        webviewView: vscode.WebviewView,
-        context: vscode.WebviewViewResolveContext,
-        _token: vscode.CancellationToken,
-    ) {
-        this._view = webviewView;
+  public resolveWebviewView(
+    webviewView: vscode.WebviewView,
+    _context: vscode.WebviewViewResolveContext,
+    _token: vscode.CancellationToken,
+  ) {
+    this._view = webviewView
 
-        webviewView.webview.options = {
-            enableScripts: true,
-            localResourceRoots: [
-                this._extensionUri
-            ]
-        };
-
-        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
-
-        // 处理来自webview的消息
-        webviewView.webview.onDidReceiveMessage(
-            message => {
-                switch (message.type) {
-                    case 'tabSwitch':
-                        this.onTabSwitched(message.tab);
-                        break;
-                    case 'search':
-                        this.onSearchPerformed(message.query, message.scope, message.searchType);
-                        break;
-                }
-            },
-            undefined,
-            []
-        );
+    webviewView.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [
+        this._extensionUri,
+      ],
     }
 
-    public updateCurrentTab(tab: 'current' | 'all') {
-        if (this._view) {
-            this._view.webview.postMessage({ type: 'updateTab', tab: tab });
+    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview)
+
+    // 处理来自webview的消息
+    webviewView.webview.onDidReceiveMessage(
+      (message) => {
+        switch (message.type) {
+          case 'tabSwitch':
+            this.onTabSwitched(message.tab)
+            break
+          case 'search':
+            this.onSearchPerformed(message.query, message.scope, message.searchType)
+            break
         }
-    }
+      },
+      undefined,
+      [],
+    )
+  }
 
-    public clearSearch() {
-        if (this._view) {
-            this._view.webview.postMessage({ type: 'clearSearch' });
-        }
+  public updateCurrentTab(tab: 'current' | 'all') {
+    if (this._view) {
+      this._view.webview.postMessage({ type: 'updateTab', tab })
     }
+  }
 
-    public focusSearchInput() {
-        if (this._view) {
-            this._view.webview.postMessage({ type: 'focusSearch' });
-        }
+  public clearSearch() {
+    if (this._view) {
+      this._view.webview.postMessage({ type: 'clearSearch' })
     }
+  }
 
-    private _getHtmlForWebview(webview: vscode.Webview) {
-        return `<!DOCTYPE html>
+  public focusSearchInput() {
+    if (this._view) {
+      this._view.webview.postMessage({ type: 'focusSearch' })
+    }
+  }
+
+  private _getHtmlForWebview(_webview: vscode.Webview) {
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -396,6 +396,6 @@ export class TabSwitcherProvider implements vscode.WebviewViewProvider {
         updateSearchInfo();
     </script>
 </body>
-</html>`;
-    }
-} 
+</html>`
+  }
+}
