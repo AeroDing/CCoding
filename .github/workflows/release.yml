@@ -3,40 +3,40 @@ name: Release VSCode Extension
 on:
   push:
     tags:
-      - 'v*'  # 匹配 v1.0.0, v1.0.1 等版本标签
+      - 'v*' # 匹配 v1.0.0, v1.0.1 等版本标签
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
-          
+          cache: npm
+
       - name: Install dependencies
         run: npm ci
-        
+
       - name: Compile TypeScript
         run: npm run compile
-        
+
       - name: Install vsce globally
         run: npm install -g @vscode/vsce
-        
+
       - name: Package extension
         run: vsce package --out CCoding-${{ github.ref_name }}.vsix
-        
+
       - name: Generate SHA256 checksum
         run: |
           sha256sum CCoding-${{ github.ref_name }}.vsix > CCoding-${{ github.ref_name }}.vsix.sha256
-          
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -44,15 +44,15 @@ jobs:
           name: CCoding ${{ github.ref_name }}
           body: |
             ## 🚀 CCoding ${{ github.ref_name }} 发布
-            
+
             ### 📦 安装方式
             1. 下载 `CCoding-${{ github.ref_name }}.vsix` 文件
             2. 在 VSCode 中按 `Ctrl+Shift+P` 打开命令面板
             3. 输入 `Extensions: Install from VSIX...`
             4. 选择下载的 `.vsix` 文件进行安装
-            
+
             ---
-            
+
             **完整源代码**: 请下载下方的 Source code 文件
             **直接安装**: 请下载 `CCoding-${{ github.ref_name }}.vsix` 文件
           generate_release_notes: true
@@ -60,4 +60,4 @@ jobs:
           prerelease: false
           files: |
             CCoding-${{ github.ref_name }}.vsix
-            CCoding-${{ github.ref_name }}.vsix.sha256 
+            CCoding-${{ github.ref_name }}.vsix.sha256
