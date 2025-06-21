@@ -8,6 +8,8 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout code
@@ -26,19 +28,20 @@ jobs:
         run: npm run compile
         
       - name: Install vsce globally
-        run: npm install -g vsce
+        run: npm install -g @vscode/vsce
         
       - name: Package extension
         run: vsce package --out CCoding-${{ github.ref_name }}.vsix
         
+      - name: Generate SHA256 checksum
+        run: |
+          sha256sum CCoding-${{ github.ref_name }}.vsix > CCoding-${{ github.ref_name }}.vsix.sha256
+          
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          release_name: CCoding ${{ github.ref_name }}
+          name: CCoding ${{ github.ref_name }}
           body: |
             ## 🚀 CCoding ${{ github.ref_name }} 发布
             
@@ -57,27 +60,6 @@ jobs:
             **直接安装**: 请下载 `CCoding-${{ github.ref_name }}.vsix` 文件
           draft: false
           prerelease: false
-          
-      - name: Upload VSIX to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./CCoding-${{ github.ref_name }}.vsix
-          asset_name: CCoding-${{ github.ref_name }}.vsix
-          asset_content_type: application/zip
-          
-      - name: Generate SHA256 checksum
-        run: |
-          sha256sum CCoding-${{ github.ref_name }}.vsix > CCoding-${{ github.ref_name }}.vsix.sha256
-          
-      - name: Upload checksum to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./CCoding-${{ github.ref_name }}.vsix.sha256
-          asset_name: CCoding-${{ github.ref_name }}.vsix.sha256
-          asset_content_type: text/plain 
+          files: |
+            CCoding-${{ github.ref_name }}.vsix
+            CCoding-${{ github.ref_name }}.vsix.sha256 
