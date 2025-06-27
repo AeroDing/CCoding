@@ -1,21 +1,36 @@
 {
+  "publisher": "AeroDing",
   "name": "CCoding",
   "displayName": "CCoding",
-  "description": "A comprehensive coding assistant with function lists, bookmarks, quick navigation, symbol pinning, todo lists, timeline, and keyword search for Vue/React development",
   "version": "0.2.3",
-  "engines": {
-    "vscode": "^1.74.0"
+  "description": "A comprehensive coding assistant with function lists, bookmarks, quick navigation, symbol pinning, todo lists, timeline, and keyword search for Vue/React development",
+  "author": "Pxin Ding",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/coding-helper"
   },
+  "keywords": [
+    "coding",
+    "CCoding",
+    "vue",
+    "react",
+    "function",
+    "bookmark"
+  ],
   "categories": [
     "Other"
   ],
+  "main": "./out/extension.js",
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
   "activationEvents": [
     "onCommand:CCoding.showFunctionList",
     "onCommand:CCoding.addBookmark",
     "onCommand:CCoding.quickJump"
   ],
-  "icon": "icon.png",
-  "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
@@ -215,37 +230,31 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "vscode:prepublish": "npm run lint && npm run compile",
+    "compile": "node scripts/build.js",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
-    "build": "npm run compile && npm run package",
+    "build": "npm run lint && npm run compile && npm run package",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "bumpp": "bumpp",
     "publish": "vsce publish",
     "postbumpp": "npm run compile && npx vsce package --out CCoding-$(node -p \"require('./package.json').version\").vsix && echo '🎉 版本发布完成！' && echo '📦 本地生成文件: CCoding-$(node -p \"require('./package.json').version\").vsix' && echo '🚀 GitHub Actions 将自动创建 Release 并上传文件'"
   },
-  "devDependencies": {
-    "@types/node": "^16.18.126",
-    "@types/vscode": "^1.74.0",
-    "typescript": "^4.9.4",
-    "vsce": "^2.15.0"
-  },
-  "keywords": [
-    "coding",
-    "CCoding",
-    "vue",
-    "react",
-    "function",
-    "bookmark"
-  ],
-  "author": "Pxin Ding",
-  "license": "MIT",
-  "publisher": "AeroDing",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/example/coding-helper"
-  },
   "dependencies": {
     "bumpp": "^10.2.0"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^4.15.0",
+    "@types/node": "^16.18.126",
+    "@types/vscode": "^1.74.0",
+    "@typescript-eslint/eslint-plugin": "^8.34.1",
+    "@typescript-eslint/parser": "^8.34.1",
+    "esbuild": "^0.25.5",
+    "eslint": "^9.29.0",
+    "eslint-plugin-format": "^1.0.1",
+    "glob": "^11.0.3",
+    "typescript": "^4.9.4",
+    "vsce": "^2.15.0"
   }
 }

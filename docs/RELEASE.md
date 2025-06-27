@@ -165,4 +165,4 @@ git push origin "v$(node -p \"require('./package.json').version\")"
 
 - [VSCode 插件发布指南](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)
 - [GitHub Actions 文档](https://docs.github.com/en/actions)
-- [语义化版本](https://semver.org/lang/zh-CN/) 
+- [语义化版本](https://semver.org/lang/zh-CN/)

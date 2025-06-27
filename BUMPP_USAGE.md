@@ -37,16 +37,19 @@ npx bumpp
 当您执行 `npx bumpp patch` 时，会自动执行以下步骤：
 
 1. **预处理** (`prebumpp` 脚本)：
+
    - 编译 TypeScript 代码
    - 构建项目
 
 2. **版本更新**：
+
    - 更新 `package.json` 和 `package-lock.json` 中的版本号
    - 创建 git commit (格式: `chore: release v0.1.2`)
    - 创建 git tag (格式: `v0.1.2`)
    - 推送到远程仓库
 
 3. **后处理** (`postbumpp` 脚本)：
+
    - 生成 VSCode 插件包 (`CCoding-0.1.2.vsix`)
    - 显示成功提示信息
 
@@ -104,11 +107,13 @@ npx bumpp --dry-run patch
 ## 📝 最佳实践
 
 1. **发布前检查**：
+
    - 确保所有测试通过
    - 更新 `CHANGELOG.md`
    - 确认没有未提交的更改
 
 2. **版本选择**：
+
    - 优先使用 `patch` 版本进行 bug 修复
    - 新功能使用 `minor` 版本
    - 破坏性更改使用 `major` 版本
@@ -123,4 +128,4 @@ npx bumpp --dry-run patch
 - bumpp 会自动处理 git 操作，无需手动提交和推送
 - 确保有推送到远程仓库的权限
 - 发布后 GitHub Actions 需要几分钟时间完成构建
-- 本地生成的 `.vsix` 文件仅供测试，正式版本请从 GitHub Release 下载 
+- 本地生成的 `.vsix` 文件仅供测试，正式版本请从 GitHub Release 下载
