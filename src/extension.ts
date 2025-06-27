@@ -180,6 +180,8 @@ export function activate(context: vscode.ExtensionContext) {
 
       vscode.workspace.onDidChangeTextDocument((_event) => {
         functionListProvider.refresh()
+        // 实时扫描当前文档的TODO变更
+        todoProvider.scanCurrentDocument()
       }),
 
       vscode.workspace.onDidSaveTextDocument(() => {

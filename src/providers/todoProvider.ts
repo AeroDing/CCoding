@@ -13,11 +13,13 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
   readonly onDidChangeTreeData: vscode.Event<TodoTreeItem | undefined | null | void> = this._onDidChangeTreeData.event
 
   private todos: TodoItem[] = []
-  private todoRegex = /(?:\/\/|\/\*|#|\*)\s*(TODO|FIXME|NOTE|HACK|BUG)(?:\s*\(([^)]+)\))?\s*(?::\s*)?(.+)/gi
+  private todoRegex = /(?:\/\/|\/\*|<!--|[#*;]|\{\s*\/\*|\{\s*\/\/|REM\s)\s*(TODO|FIXME|NOTE|HACK|BUG)(?:\s*\(([^)]+)\))?\s*(?::\s*)?(.+?)(?:\*\/|-->|$)/gi
   private decorationTypes: Map<string, vscode.TextEditorDecorationType> = new Map()
   private isScanning: boolean = false
   private scanTimeout: NodeJS.Timeout | undefined
   private currentTab: 'current' | 'all' = 'current'
+  private currentDocumentTodos: Map<string, TodoItem[]> = new Map()
+  private lastScanTime: number = 0
 
   constructor() {
     this.initDecorationTypes()
@@ -52,10 +54,10 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
       clearTimeout(this.scanTimeout)
     }
 
-    // 设置300ms的防抖延时
+    // 减少防抖延时到100ms
     this.scanTimeout = setTimeout(() => {
       this.scanForTodos()
-    }, 300)
+    }, 100)
   }
 
   /**
@@ -67,6 +69,53 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
       clearTimeout(this.scanTimeout)
     }
     this.scanForTodos()
+  }
+
+  /**
+   * 实时扫描当前活动文档的TODO项
+   * @description 用于在文档变更时实时更新TODO列表
+   */
+  scanCurrentDocument(): void {
+    const editor = vscode.window.activeTextEditor
+    if (!editor) {
+      return
+    }
+
+    const document = editor.document
+    const filePath = vscode.workspace.asRelativePath(document.uri)
+    const content = document.getText()
+    const lines = content.split('\n')
+    const currentDocTodos: TodoItem[] = []
+
+    lines.forEach((line, index) => {
+      const regex = /(?:\/\/|\/\*|<!--|[#*;]|\{\s*\/\*|\{\s*\/\/|REM\s)\s*(TODO|FIXME|NOTE|HACK|BUG)(?:\s*\(([^)]+)\))?\s*(?::\s*)?(.+?)(?:\*\/|-->|$)/gi
+      let match
+
+      match = regex.exec(line)
+      while (match !== null) {
+        const [, type, _author, text] = match
+        const todoItem: TodoItem = {
+          text: text.trim(),
+          file: filePath,
+          line: index,
+          column: match.index,
+          type: type.toUpperCase() as TodoItem['type'],
+        }
+        currentDocTodos.push(todoItem)
+        match = regex.exec(line)
+      }
+    })
+
+    // 更新当前文档的TODO缓存
+    this.currentDocumentTodos.set(filePath, currentDocTodos)
+
+    // 更新总的todos列表，移除旧的当前文档TODO，添加新的
+    this.todos = this.todos.filter(todo => todo.file !== filePath)
+    this.todos.push(...currentDocTodos)
+
+    // 刷新界面
+    this._onDidChangeTreeData.fire()
+    this.updateDecorations()
   }
 
   getTreeItem(element: TodoTreeItem): vscode.TreeItem {
@@ -162,7 +211,8 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
   }
 
   private async scanFolder(folderUri: vscode.Uri) {
-    const pattern = new vscode.RelativePattern(folderUri, '**/*.{js,ts,jsx,tsx,vue,py,java,c,cpp,cs,php,rb,go,rs,swift}')
+    // 支持所有常见文本文件类型
+    const pattern = new vscode.RelativePattern(folderUri, '**/*.{js,ts,jsx,tsx,vue,py,java,c,cpp,cs,php,rb,go,rs,swift,html,htm,css,scss,sass,less,md,markdown,txt,json,xml,yaml,yml,sh,bat,ps1,sql,r,m,scala,kotlin,dart,lua,perl,pl,ini,cfg,conf,log,tex,jsx,tsx}')
     const files = await vscode.workspace.findFiles(pattern, '**/node_modules/**')
 
     for (const file of files) {
@@ -177,7 +227,7 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
       const lines = content.split('\n')
 
       lines.forEach((line, index) => {
-        const regex = /(?:\/\/|\/\*|#|\*)\s*(TODO|FIXME|NOTE|HACK|BUG)(?:\s*\(([^)]+)\))?\s*(?::\s*)?(.+)/gi
+        const regex = /(?:\/\/|\/\*|<!--|[#*;]|\{\s*\/\*|\{\s*\/\/|REM\s)\s*(TODO|FIXME|NOTE|HACK|BUG)(?:\s*\(([^)]+)\))?\s*(?::\s*)?(.+?)(?:\*\/|-->|$)/gi
         let match
 
         match = regex.exec(line)
@@ -325,6 +375,8 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
   private setupEventListeners(): void {
     vscode.window.onDidChangeActiveTextEditor(() => {
       this.updateDecorations()
+      // 切换文件时立即扫描新文件的TODO
+      this.scanCurrentDocument()
     })
   }
 
