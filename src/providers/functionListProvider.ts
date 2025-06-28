@@ -1,6 +1,4 @@
 import * as vscode from 'vscode'
-import { ReactParser } from '../parsers/reactParser'
-import { VueParser } from '../parsers/vueParser'
 
 // 扩展的符号类型
 enum CustomSymbolKind {
@@ -10,7 +8,7 @@ enum CustomSymbolKind {
   VueComponent = 'vue-component',
   ReactComponent = 'react-component',
   ArrowFunction = 'arrow-function',
-  AsyncFunction = 'async-function'
+  AsyncFunction = 'async-function',
 }
 
 interface FunctionDetails {
@@ -67,7 +65,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         this.validateState()
         this._onDidChangeTreeData.fire()
       })
-      .catch(error => {
+      .catch((error) => {
         console.error('CCoding: Error parsing functions:', error)
         // 出错时清理状态，防止显示不一致的数据
         this.clearAllState()
@@ -81,7 +79,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   private validateState(): void {
     // 确保 rootItems 与 functions 一致
     const expectedRootItems = this.buildTreeStructure()
-    
+
     // 如果不一致，重新构建
     if (!this.areItemsConsistent(this.rootItems, expectedRootItems)) {
       console.warn('CCoding: State inconsistency detected, rebuilding tree')
@@ -96,18 +94,18 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
     if (items1.length !== items2.length) {
       return false
     }
-    
+
     for (let i = 0; i < items1.length; i++) {
       const item1 = items1[i]
       const item2 = items2[i]
-      
-      if (item1.name !== item2.name || 
-          item1.range?.start.line !== item2.range?.start.line ||
-          (item1.children?.length || 0) !== (item2.children?.length || 0)) {
+
+      if (item1.name !== item2.name
+        || item1.range?.start.line !== item2.range?.start.line
+        || (item1.children?.length || 0) !== (item2.children?.length || 0)) {
         return false
       }
     }
-    
+
     return true
   }
 
@@ -122,14 +120,14 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         !this.searchQuery || this.matchesSearchQuery(item),
       ))
     }
-    
+
     // 返回子项目，并应用搜索过滤
     if (element.children) {
       return Promise.resolve(element.children.filter(child =>
         !this.searchQuery || this.matchesSearchQuery(child),
       ))
     }
-    
+
     return Promise.resolve([])
   }
 
@@ -137,18 +135,19 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    * 检查项目是否匹配搜索查询（递归检查子项）
    */
   private matchesSearchQuery(item: FunctionItem): boolean {
-    if (!this.searchQuery) return true
-    
+    if (!this.searchQuery)
+      return true
+
     // 检查当前项目名称
     if (item.label.toString().toLowerCase().includes(this.searchQuery)) {
       return true
     }
-    
+
     // 递归检查子项
     if (item.children) {
       return item.children.some(child => this.matchesSearchQuery(child))
     }
-    
+
     return false
   }
 
@@ -159,12 +158,12 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   private buildTreeStructure(): FunctionItem[] {
     // 获取顶级符号
     const topLevelSymbols = this.functions.filter(func => !func.parent)
-    
+
     // 按类型分组
     const groups = this.groupSymbolsByType(topLevelSymbols)
-    
+
     const result: FunctionItem[] = []
-    
+
     // 为每个非空分组创建项目
     Object.entries(groups).forEach(([groupName, symbols]) => {
       if (symbols.length > 0) {
@@ -172,16 +171,17 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         if (Object.keys(groups).length === 1 && symbols.length <= 10) {
           result.push(...symbols
             .sort((a, b) => a.range.start.line - b.range.start.line)
-            .map(func => this.createFunctionItemWithChildren(func))
+            .map(func => this.createFunctionItemWithChildren(func)),
           )
-        } else {
+        }
+        else {
           // 创建分组头
           const groupItem = this.createGroupItem(groupName, symbols)
           result.push(groupItem)
         }
       }
     })
-    
+
     return result
   }
 
@@ -195,7 +195,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       '类': [],
       '函数': [],
       '方法': [],
-      '其他': []
+      '其他': [],
     }
 
     console.log(`[CCoding] 开始分组 ${symbols.length} 个符号`)
@@ -208,7 +208,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       console.log(`  - kind: ${symbol.kind}`)
       console.log(`  - customKind: ${symbol.customKind}`)
       console.log(`  - signature: ${symbol.signature?.substring(0, 80)}`)
-      
+
       // 检查重复
       const symbolKey = `${symbol.name}:${symbol.range.start.line}`
       if (seenSymbols.has(symbolKey)) {
@@ -220,10 +220,10 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
 
       // 按照明确的优先级进行分组（高优先级优先）
       let targetGroup = ''
-      
+
       // 优先级1: 自定义类型（箭头函数等）
-      if (symbol.customKind === CustomSymbolKind.ArrowFunction || 
-          symbol.customKind === CustomSymbolKind.AsyncFunction) {
+      if (symbol.customKind === CustomSymbolKind.ArrowFunction
+        || symbol.customKind === CustomSymbolKind.AsyncFunction) {
         groups['函数'].push(symbol)
         targetGroup = '函数'
         console.log(`  -> 函数 (自定义箭头函数) ✅`)
@@ -272,7 +272,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
     Object.entries(groups).forEach(([groupName, groupSymbols]) => {
       console.log(`  ${groupName}: ${groupSymbols.length} 个`)
       if (groupSymbols.length > 0) {
-        groupSymbols.forEach(s => {
+        groupSymbols.forEach((s) => {
           const kindInfo = s.customKind ? `customKind:${s.customKind}` : `kind:${s.kind}`
           console.log(`    - ${s.name} (${kindInfo}, 行${s.range.start.line})`)
         })
@@ -283,7 +283,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
     const functionGroup = groups['函数']
     const hasIncrement = functionGroup.some(f => f.name === 'increment')
     console.log(`[CCoding] 🔍 验证: increment 是否在函数组? ${hasIncrement ? '✅ 是' : '❌ 否'}`)
-    
+
     if (!hasIncrement) {
       // 查找 increment 在哪个组
       Object.entries(groups).forEach(([groupName, groupSymbols]) => {
@@ -320,59 +320,58 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   private isFunction(symbol: FunctionDetails): boolean {
     const debugInfo = `[CCoding] 检查函数: ${symbol.name} (kind: ${symbol.kind}, customKind: ${symbol.customKind})`
     console.log(debugInfo)
-    
+
     // 第一优先级：自定义箭头函数类型（绝对优先）
     if (symbol.customKind === CustomSymbolKind.ArrowFunction) {
       console.log(`[CCoding] ✅ ${symbol.name} 被识别为箭头函数 (customKind: ArrowFunction)`)
       return true
     }
-    
+
     if (symbol.customKind === CustomSymbolKind.AsyncFunction) {
       console.log(`[CCoding] ✅ ${symbol.name} 被识别为异步函数 (customKind: AsyncFunction)`)
       return true
     }
-    
+
     // 第二优先级：VSCode API识别的标准函数
     if (symbol.kind === vscode.SymbolKind.Function) {
       console.log(`[CCoding] ✅ ${symbol.name} 被识别为VSCode函数 (kind: Function)`)
       return true
     }
-    
+
     // 第三优先级：VSCode API识别的方法
     if (symbol.kind === vscode.SymbolKind.Method) {
       console.log(`[CCoding] ✅ ${symbol.name} 被识别为VSCode方法 (kind: Method)`)
       return true
     }
-    
+
     // 第四优先级：函数形式的属性/字段（检查签名）
-    if ((symbol.kind === vscode.SymbolKind.Property || symbol.kind === vscode.SymbolKind.Field) && 
-        symbol.signature) {
-      
+    if ((symbol.kind === vscode.SymbolKind.Property || symbol.kind === vscode.SymbolKind.Field)
+      && symbol.signature) {
       // 检查箭头函数签名
       if (symbol.signature.includes('=>')) {
         console.log(`[CCoding] ✅ ${symbol.name} 被识别为属性箭头函数 (signature: ${symbol.signature.substring(0, 40)}...)`)
         return true
       }
-      
+
       // 检查函数表达式
       if (symbol.signature.includes('function')) {
         console.log(`[CCoding] ✅ ${symbol.name} 被识别为属性函数表达式 (signature: ${symbol.signature.substring(0, 40)}...)`)
         return true
       }
-      
+
       // 检查getter/setter
       if (symbol.signature.includes('get ') || symbol.signature.includes('set ')) {
         console.log(`[CCoding] ✅ ${symbol.name} 被识别为getter/setter (signature: ${symbol.signature.substring(0, 40)}...)`)
         return true
       }
     }
-    
+
     // 第五优先级：任何包含箭头符号的签名（兜底检查）
     if (symbol.signature && symbol.signature.includes('=>')) {
       console.log(`[CCoding] ✅ ${symbol.name} 被识别为箭头函数签名 (signature: ${symbol.signature.substring(0, 40)}...)`)
       return true
     }
-    
+
     console.log(`[CCoding] ❌ ${symbol.name} 未被识别为函数`)
     console.log(`[CCoding]    - kind: ${symbol.kind}`)
     console.log(`[CCoding]    - customKind: ${symbol.customKind || 'undefined'}`)
@@ -384,8 +383,8 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    * 判断是否为方法
    */
   private isMethod(symbol: FunctionDetails): boolean {
-    return symbol.kind === vscode.SymbolKind.Method || 
-           symbol.kind === vscode.SymbolKind.Constructor
+    return symbol.kind === vscode.SymbolKind.Method
+      || symbol.kind === vscode.SymbolKind.Constructor
   }
 
   /**
@@ -405,7 +404,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       null,
       null,
       0,
-      true
+      true,
     )
 
     // 为分组创建子项
@@ -417,7 +416,6 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
 
     return groupItem
   }
-
 
   /**
    * 创建包含子项的函数项（递归）
@@ -438,7 +436,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       item.children = details.children
         .sort((a, b) => a.range.start.line - b.range.start.line)
         .map(child => this.createFunctionItemWithChildren(child))
-      
+
       // 更新折叠状态
       item.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed
     }
@@ -449,7 +447,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   private async parseFunctions() {
     // 完全清理之前的状态，避免重复数据
     this.clearAllState()
-    
+
     const editor = vscode.window.activeTextEditor
     if (!editor) {
       return
@@ -464,7 +462,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
     // 🔥 Vue文件特殊检测和日志
     const isVueFile = document.fileName.toLowerCase().endsWith('.vue')
     console.log(`[CCoding] 🚀 开始解析 ${document.fileName} ${isVueFile ? '(Vue文件)' : '(普通文件)'}`)
-    
+
     if (isVueFile) {
       console.log(`[CCoding] 📋 Vue文件特殊处理激活`)
       // 记录Vue文件的基本信息
@@ -475,44 +473,44 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       console.log(`  - 包含<script setup>: ${hasScriptSetup ? '✅' : '❌'}`)
       console.log(`  - VSCode识别符号数: ${symbols?.length || 0}`)
     }
-    
+
     if (symbols && symbols.length > 0) {
       // 第一阶段：核心符号解析（最高优先级，不会被覆盖）
       console.log(`[CCoding] 🔧 阶段1: 解析VSCode API识别的 ${symbols.length} 个符号`)
       await this.extractFunctions(symbols, document)
       console.log(`[CCoding] ✅ 阶段1完成: 当前符号数 = ${this.functions.length}`)
-      
+
       // 🔍 特殊检查：increment在第一阶段的状态
       this.checkIncrementStatus('阶段1-VSCode API解析后')
-      
+
       // 第二阶段：补充箭头函数解析（中等优先级，有去重保护）
       console.log(`[CCoding] 🏹 阶段2: 解析箭头函数`)
       await this.extractAdditionalSymbols(document)
       console.log(`[CCoding] ✅ 阶段2完成: 当前符号数 = ${this.functions.length}`)
-      
+
       // 🔍 特殊检查：increment在第二阶段的状态
       this.checkIncrementStatus('阶段2-箭头函数解析后')
-      
+
       // 第三阶段：DOM/CSS解析（最低优先级，有名称冲突检查）
       console.log(`[CCoding] 🏗️ 阶段3: 解析DOM元素`)
       await this.extractDOMElementsWithConflictCheck(document)
       console.log(`[CCoding] ✅ 阶段3a完成: 当前符号数 = ${this.functions.length}`)
-      
+
       console.log(`[CCoding] 🎨 阶段4: 解析CSS规则`)
       await this.extractCSSRulesWithConflictCheck(document)
       console.log(`[CCoding] ✅ 阶段4完成: 当前符号数 = ${this.functions.length}`)
-      
+
       // 🔍 特殊检查：increment在DOM/CSS解析后的状态
       this.checkIncrementStatus('阶段4-DOM/CSS解析后')
-      
+
       // 第四阶段：最终验证和清理
       console.log(`[CCoding] 🧹 阶段5: 最终验证和构建树结构`)
       this.validateAndCleanSymbols()
       this.rootItems = this.buildTreeStructure()
-      
+
       // 🔍 最终检查：increment的最终状态
       this.checkIncrementStatus('阶段5-最终状态')
-      
+
       console.log(`[CCoding] 🎉 解析完成: 共 ${this.functions.length} 个符号`)
       this.logFinalSymbolBreakdown()
     }
@@ -548,7 +546,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       [vscode.SymbolKind.Struct]: 'Struct',
       [vscode.SymbolKind.Event]: 'Event',
       [vscode.SymbolKind.Operator]: 'Operator',
-      [vscode.SymbolKind.TypeParameter]: 'TypeParameter'
+      [vscode.SymbolKind.TypeParameter]: 'TypeParameter',
     }
     return kindNames[kind] || `Unknown(${kind})`
   }
@@ -559,10 +557,11 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   private checkIncrementStatus(stage: string) {
     const incrementFunctions = this.functions.filter(f => f.name === 'increment')
     console.log(`[CCoding] 🔍 ${stage} - increment状态检查:`)
-    
+
     if (incrementFunctions.length === 0) {
       console.log(`[CCoding]   ❌ 未找到increment函数`)
-    } else {
+    }
+    else {
       incrementFunctions.forEach((func, index) => {
         console.log(`[CCoding]   ✅ 找到increment #${index + 1}:`)
         console.log(`[CCoding]     - kind: ${func.kind}`)
@@ -572,23 +571,23 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         console.log(`[CCoding]     - 父级: ${func.parent?.name || '根级'}`)
       })
     }
-    
+
     // 也检查子级中是否有increment
     const findInChildren = (funcs: FunctionDetails[], prefix: string = ''): void => {
-      funcs.forEach(func => {
+      funcs.forEach((func) => {
         if (func.children) {
           const childIncrements = func.children.filter(child => child.name === 'increment')
           if (childIncrements.length > 0) {
             console.log(`[CCoding]   ✅ 在${prefix}${func.name}的子级中找到increment:`)
-            childIncrements.forEach(child => {
+            childIncrements.forEach((child) => {
               console.log(`[CCoding]     - customKind: ${child.customKind || '未设置'}`)
             })
           }
-          findInChildren(func.children, prefix + '  ')
+          findInChildren(func.children, `${prefix}  `)
         }
       })
     }
-    
+
     findInChildren(this.functions)
   }
 
@@ -599,11 +598,11 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
     // 先清理循环引用，避免内存泄漏
     this.functions.forEach(func => this.clearFunctionReferences(func))
     this.rootItems.forEach(item => this.clearItemReferences(item))
-    
+
     // 然后清理数据
     this.functions = []
     this.rootItems = []
-    
+
     // 清理搜索状态
     this.searchQuery = ''
   }
@@ -613,13 +612,13 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    */
   private clearFunctionReferences(func: FunctionDetails) {
     if (func.children) {
-      func.children.forEach(child => {
-        child.parent = undefined  // 打破循环引用
+      func.children.forEach((child) => {
+        child.parent = undefined // 打破循环引用
         this.clearFunctionReferences(child)
       })
-      func.children = []  // 清空子数组
+      func.children = [] // 清空子数组
     }
-    func.parent = undefined  // 清理父引用
+    func.parent = undefined // 清理父引用
   }
 
   /**
@@ -647,18 +646,18 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
 
     // 🔥 针对Vue文件优化的箭头函数模式
     const arrowFunctionPatterns = [
-      // 基本箭头函数: const increment = () => { 
+      // 基本箭头函数: const increment = () => {
       /(const|let|var)\s+(\w+)\s*=\s*\([^)]*\)\s*=>/g,
       // 异步箭头函数: const increment = async () => {
       /(const|let|var)\s+(\w+)\s*=\s*async\s*\([^)]*\)\s*=>/g,
-      // 单参数箭头函数: const increment = param => 
+      // 单参数箭头函数: const increment = param =>
       /(const|let|var)\s+(\w+)\s*=\s*\w+\s*=>/g,
       // 函数表达式: const increment = function() {}
       /(const|let|var)\s+(\w+)\s*=\s*function/g,
       // Vue特殊模式: 对象方法形式的箭头函数
       /(\w+)\s*:\s*\([^)]*\)\s*=>/g,
       // Vue特殊模式: 对象异步方法
-      /(\w+)\s*:\s*async\s*\([^)]*\)\s*=>/g
+      /(\w+)\s*:\s*async\s*\([^)]*\)\s*=>/g,
     ]
 
     console.log(`[CCoding] 🏹 开始解析箭头函数，内容长度: ${content.length}`)
@@ -679,27 +678,28 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
 
     let match: RegExpExecArray | null
     let patternIndex = 0
-    
+
     for (const pattern of arrowFunctionPatterns) {
       pattern.lastIndex = 0 // 重置正则表达式状态
       console.log(`[CCoding] 🎯 尝试模式 ${patternIndex}: ${pattern.source}`)
-      
+
       let matchCount = 0
-      while ((match = pattern.exec(content)) !== null) {
+      match = pattern.exec(content)
+      while (match !== null) {
         matchCount++
         const fullMatch = match[0]
         // 根据模式确定函数名的位置
-        const functionName = patternIndex < 4 ? match[2] : match[1]  // 前4个模式函数名在第2组，后面的在第1组
-        
+        const functionName = patternIndex < 4 ? match[2] : match[1] // 前4个模式函数名在第2组，后面的在第1组
+
         console.log(`[CCoding] 🎪 模式${patternIndex}匹配 #${matchCount}: "${fullMatch}", 函数名: "${functionName}"`)
-        
+
         // 🔍 特殊关注increment
         if (functionName === 'increment') {
           console.log(`[CCoding] 🎯 特别关注: 找到increment匹配!`)
           console.log(`[CCoding]   - 完整匹配: "${fullMatch}"`)
           console.log(`[CCoding]   - 使用模式: ${pattern.source}`)
         }
-        
+
         if (!functionName) {
           console.log(`[CCoding] ⚠️ 跳过：无函数名`)
           continue
@@ -723,7 +723,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
 
         // 计算嵌套层级
         const level = this.calculateNestingLevel(lines, lineIndex)
-        
+
         // 找到父级函数
         const parent = this.findParentFunction(lineIndex)
 
@@ -744,15 +744,16 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
           isPrivate: functionName.startsWith('_'),
           complexity: 1,
           additionalInfo: {
-            isAsync
-          }
+            isAsync,
+          },
         }
 
         // 添加到对应的位置
         if (parent) {
           parent.children.push(arrowFunction)
           console.log(`[CCoding] ✅ 添加箭头函数 ${functionName} 到父级 ${parent.name}`)
-        } else {
+        }
+        else {
           this.functions.push(arrowFunction)
           console.log(`[CCoding] ✅ 添加箭头函数 ${functionName} 到根级，customKind: ${arrowFunction.customKind}`)
           console.log(`[CCoding] 📊 当前根级函数总数: ${this.functions.length}`)
@@ -764,8 +765,10 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
           console.log(`[CCoding]   - customKind: ${arrowFunction.customKind}`)
           console.log(`[CCoding]   - 位置: ${parent ? `子级(${parent.name})` : '根级'}`)
         }
+
+        match = pattern.exec(content)
       }
-      
+
       console.log(`[CCoding] 📊 模式${patternIndex}总匹配数: ${matchCount}`)
       patternIndex++
     }
@@ -784,11 +787,11 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    */
   private isFunctionAlreadyExists(name: string, lineIndex: number): boolean {
     // 首先检查根级函数
-    const existingInRoot = this.functions.find(func => 
-      func.name === name && 
-      Math.abs(func.range.start.line - lineIndex) <= 1
+    const existingInRoot = this.functions.find(func =>
+      func.name === name
+      && Math.abs(func.range.start.line - lineIndex) <= 1,
     )
-    
+
     if (existingInRoot) {
       // 🔥 关键优化：如果已存在的符号没有customKind，允许覆盖
       if (!existingInRoot.customKind) {
@@ -800,12 +803,13 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
           console.log(`[CCoding] 移除旧符号: ${name} (无customKind)`)
         }
         return false // 允许添加新的符号
-      } else {
+      }
+      else {
         console.log(`[CCoding] 去重检查: ${name} 已存在且有customKind (${existingInRoot.customKind})，跳过 (行 ${lineIndex})`)
         return true // 已有完整的符号，不允许覆盖
       }
     }
-    
+
     // 然后递归检查所有层级
     const existingInTree = this.findExistingFunctionInTree(name, lineIndex)
     if (existingInTree) {
@@ -815,12 +819,13 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         // 从父级移除
         this.removeFromParent(existingInTree)
         return false // 允许添加新的符号
-      } else {
+      }
+      else {
         console.log(`[CCoding] 去重检查: ${name} 在子级存在且有customKind，跳过 (行 ${lineIndex})`)
         return true
       }
     }
-    
+
     console.log(`[CCoding] 去重检查: ${name} 不存在，可以添加 (行 ${lineIndex})`)
     return false
   }
@@ -848,7 +853,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         if (func.name === name && Math.abs(func.range.start.line - lineIndex) <= 1) {
           return func
         }
-        
+
         // 递归搜索子函数
         if (func.children && func.children.length > 0) {
           const found = searchInChildren(func.children)
@@ -859,10 +864,9 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       }
       return undefined
     }
-    
+
     return searchInChildren(this.functions)
   }
-
 
   /**
    * 计算嵌套层级
@@ -870,18 +874,19 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   private calculateNestingLevel(lines: string[], lineIndex: number): number {
     let level = 0
     let braceCount = 0
-    
+
     for (let i = 0; i <= lineIndex; i++) {
       const line = lines[i]
       for (const char of line) {
         if (char === '{') {
           braceCount++
-        } else if (char === '}') {
+        }
+        else if (char === '}') {
           braceCount--
         }
       }
     }
-    
+
     // 简化的层级计算，基于大括号数量
     level = Math.max(0, Math.floor(braceCount / 2))
     return level
@@ -905,7 +910,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
             nearestParent = func
           }
         }
-        
+
         // 递归搜索子函数
         if (func.children) {
           searchInFunctions(func.children)
@@ -925,7 +930,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
     if (!match || !match[1].trim()) {
       return []
     }
-    
+
     return match[1].split(',').map(param => param.trim()).filter(p => p)
   }
 
@@ -934,10 +939,10 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    */
   private validateAndCleanSymbols() {
     console.log(`[CCoding] 验证前: ${this.functions.length} 个符号`)
-    
+
     // 移除重复的符号（相同名称+行号）
     const seen = new Set<string>()
-    this.functions = this.functions.filter(func => {
+    this.functions = this.functions.filter((func) => {
       const key = `${func.name}:${func.range.start.line}`
       if (seen.has(key)) {
         console.log(`[CCoding] 移除重复符号: ${func.name} (行 ${func.range.start.line})`)
@@ -946,7 +951,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       seen.add(key)
       return true
     })
-    
+
     console.log(`[CCoding] 验证后: ${this.functions.length} 个符号`)
   }
 
@@ -955,20 +960,20 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    */
   private logFinalSymbolBreakdown() {
     const breakdown: Record<string, number> = {}
-    
+
     const countSymbols = (symbols: FunctionDetails[]) => {
-      symbols.forEach(symbol => {
+      symbols.forEach((symbol) => {
         const key = symbol.customKind || symbol.kind.toString()
         breakdown[key] = (breakdown[key] || 0) + 1
-        
+
         if (symbol.children) {
           countSymbols(symbol.children)
         }
       })
     }
-    
+
     countSymbols(this.functions)
-    
+
     console.log(`[CCoding] 符号统计:`)
     Object.entries(breakdown).forEach(([type, count]) => {
       console.log(`  ${type}: ${count} 个`)
@@ -999,26 +1004,27 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   private async extractDOMElements(document: vscode.TextDocument) {
     const content = document.getText()
     const fileName = document.fileName.toLowerCase()
-    
+
     // 只处理HTML、Vue、JSX文件
-    if (!fileName.endsWith('.html') && !fileName.endsWith('.vue') && 
-        !fileName.endsWith('.jsx') && !fileName.endsWith('.tsx')) {
+    if (!fileName.endsWith('.html') && !fileName.endsWith('.vue')
+      && !fileName.endsWith('.jsx') && !fileName.endsWith('.tsx')) {
       return
     }
 
     const lines = content.split('\n')
-    const elementStack: Array<{element: FunctionDetails, tagName: string}> = []
-    
+    const elementStack: Array<{ element: FunctionDetails, tagName: string }> = []
+
     // 匹配开始标签、自闭合标签、结束标签
-    const tagPattern = /<(\/?)([\w-]+)(?:\s+[^>]*)?(\s*\/?)>/g
+    const tagPattern = /<(\/?)([\w-]+)(?:\s[^>]*)?(\/?)>/g
     let match: RegExpExecArray | null
-    
-    while ((match = tagPattern.exec(content)) !== null) {
+
+    match = tagPattern.exec(content)
+    while (match !== null) {
       const isClosing = match[1] === '/'
       const tagName = match[2]
       const isSelfClosing = match[3] === '/' || ['img', 'br', 'hr', 'input', 'meta', 'link'].includes(tagName.toLowerCase())
       const lineIndex = this.getLineIndexFromMatch(content, match.index)
-      
+
       // 跳过脚本和样式标签
       if (['script', 'style'].includes(tagName.toLowerCase())) {
         continue
@@ -1030,11 +1036,12 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         if (stackIndex !== -1) {
           elementStack.splice(stackIndex, 1)
         }
-      } else {
+      }
+      else {
         // 开始标签或自闭合标签
         const currentLevel = elementStack.length
         const parent = elementStack.length > 0 ? elementStack[elementStack.length - 1].element : undefined
-        
+
         // 检查DOM元素名称是否与已有函数冲突
         const elementName = `<${tagName}>`
         if (this.isFunctionAlreadyExists(elementName, lineIndex)) {
@@ -1049,7 +1056,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
           range: new vscode.Range(lineIndex, 0, lineIndex, lines[lineIndex]?.length || 0),
           uri: document.uri,
           level: currentLevel,
-          parent: parent,
+          parent,
           children: [],
           signature: match[0].length > 80 ? `${match[0].substring(0, 80)}...` : match[0],
           frameworkType: fileName.endsWith('.vue') ? 'vue' : 'general',
@@ -1057,26 +1064,29 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
           isPrivate: false,
           complexity: 1,
           additionalInfo: {
-            htmlTag: tagName
-          }
+            htmlTag: tagName,
+          },
         }
 
         // 添加到父元素的子节点或根节点
         if (parent) {
           parent.children.push(domElement)
           console.log(`[CCoding] 添加DOM子元素: ${elementName} -> ${parent.name} (行 ${lineIndex})`)
-        } else {
+        }
+        else {
           this.functions.push(domElement)
           console.log(`[CCoding] 添加DOM根元素: ${elementName} (行 ${lineIndex})`)
         }
 
         // 如果不是自闭合标签，压入栈中
         if (!isSelfClosing) {
-          elementStack.push({element: domElement, tagName})
+          elementStack.push({ element: domElement, tagName })
         }
-        
+
         console.log(`[CCoding] DOM元素: ${domElement.name}, level: ${currentLevel}, parent: ${parent?.name || 'root'}`)
       }
+
+      match = tagPattern.exec(content)
     }
   }
 
@@ -1086,40 +1096,42 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   private async extractCSSRules(document: vscode.TextDocument) {
     const content = document.getText()
     const fileName = document.fileName.toLowerCase()
-    
+
     // 只处理CSS、Vue文件或包含style标签的文件
-    if (!fileName.endsWith('.css') && !fileName.endsWith('.scss') && 
-        !fileName.endsWith('.less') && !fileName.endsWith('.vue') &&
-        !content.includes('<style')) {
+    if (!fileName.endsWith('.css') && !fileName.endsWith('.scss')
+      && !fileName.endsWith('.less') && !fileName.endsWith('.vue')
+      && !content.includes('<style')) {
       return
     }
 
     let cssContent = content
-    
+
     // 如果是Vue文件，提取style部分
     if (fileName.endsWith('.vue')) {
       const styleMatch = content.match(/<style[^>]*>([\s\S]*?)<\/style>/g)
       if (styleMatch) {
         cssContent = styleMatch.join('\n')
-      } else {
+      }
+      else {
         return
       }
     }
 
     // CSS选择器模式
-    const cssRulePattern = /([.#]?[\w-]+(?:\s*[>+~]\s*[\w-]+)*|\w+)\s*\{/g
+    const cssRulePattern = /([.#]?[\w-]+(?:\s*[>+~]\s*[\w-]+)*)\s*\{/g
     let match: RegExpExecArray | null
-    
-    while ((match = cssRulePattern.exec(cssContent)) !== null) {
+
+    match = cssRulePattern.exec(cssContent)
+    while (match !== null) {
       const selector = match[1].trim()
       const lineIndex = this.getLineIndexFromMatch(content, match.index)
-      
+
       // 检查CSS选择器名称是否与已有符号冲突
       if (this.isFunctionAlreadyExists(selector, lineIndex)) {
         console.log(`[CCoding] 跳过CSS规则 ${selector}：与已有符号冲突 (行 ${lineIndex})`)
         continue
       }
-      
+
       const cssRule: FunctionDetails = {
         name: selector,
         kind: vscode.SymbolKind.Property,
@@ -1134,18 +1146,20 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         isPrivate: false,
         complexity: 1,
         additionalInfo: {
-          selector: selector
-        }
+          selector,
+        },
       }
 
       this.functions.push(cssRule)
       console.log(`[CCoding] 添加CSS规则: ${selector} (行 ${lineIndex})`)
+
+      match = cssRulePattern.exec(cssContent)
     }
   }
 
   private async extractFunctions(symbols: vscode.DocumentSymbol[], document: vscode.TextDocument, level = 0, parent?: FunctionDetails) {
     console.log(`[CCoding] 📋 VSCode API 识别的符号数量: ${symbols.length}`)
-    
+
     // 🔥 首先输出所有符号的详细信息
     console.log(`[CCoding] 📊 所有VSCode识别的符号详情:`)
     symbols.forEach((symbol, index) => {
@@ -1154,7 +1168,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       console.log(`[CCoding]      - detail: "${symbol.detail || '无'}"`)
       console.log(`[CCoding]      - range: ${symbol.range.start.line}:${symbol.range.start.character} - ${symbol.range.end.line}:${symbol.range.end.character}`)
       console.log(`[CCoding]      - 是否可调用: ${this.isCallableSymbol(symbol) ? '✅' : '❌'}`)
-      
+
       // 🎯 特别关注increment
       if (symbol.name === 'increment') {
         console.log(`[CCoding] 🎯 特别关注: 找到increment符号!`)
@@ -1163,14 +1177,14 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         console.log(`[CCoding]      - 预期通过isCallableSymbol: ${this.isCallableSymbol(symbol)}`)
       }
     })
-    
+
     for (const symbol of symbols) {
       console.log(`[CCoding] 🔄 处理符号: ${symbol.name} (kind: ${symbol.kind})`)
-      
+
       if (this.isCallableSymbol(symbol) || symbol.kind === vscode.SymbolKind.Class) {
         // 提取符号签名用于箭头函数检测
         const signature = await this.extractSignature(symbol, document)
-        
+
         const functionDetails: FunctionDetails = {
           name: symbol.name,
           kind: symbol.kind,
@@ -1179,7 +1193,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
           level,
           parent,
           children: [],
-          signature: signature,
+          signature,
           parameters: this.extractParameters(symbol.detail || ''),
           frameworkType: this.detectFrameworkType(document.fileName),
           isLifecycle: this.isLifecycleMethod(symbol.name, document.fileName),
@@ -1228,11 +1242,11 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   private detectAndSetArrowFunctionKind(functionDetails: FunctionDetails, symbol: vscode.DocumentSymbol, signature: string) {
     // 检查是否为箭头函数的多种方式
     const isArrowFunction = this.detectArrowFunctionFromSignature(signature, symbol)
-    
+
     if (isArrowFunction) {
       const isAsync = signature.includes('async')
       functionDetails.customKind = isAsync ? CustomSymbolKind.AsyncFunction : CustomSymbolKind.ArrowFunction
-      
+
       console.log(`[CCoding] 🎯 第一阶段检测到箭头函数: ${functionDetails.name}`)
       console.log(`[CCoding]   - 原始kind: ${symbol.kind}`)
       console.log(`[CCoding]   - 设置customKind: ${functionDetails.customKind}`)
@@ -1246,29 +1260,29 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    */
   private detectArrowFunctionFromSignature(signature: string, symbol: vscode.DocumentSymbol): boolean {
     console.log(`[CCoding] 🔍 箭头函数检测开始: ${symbol.name} (kind: ${symbol.kind})`)
-    
+
     // 方法1: 检查签名中的箭头符号
     if (signature && signature.includes('=>')) {
       console.log(`[CCoding] 检测方法1: 签名包含箭头符号 ✅`)
       console.log(`[CCoding]   - 签名: "${signature}"`)
       return true
     }
-    
+
     // 方法2: 检查symbol.detail中的箭头符号
     if (symbol.detail && symbol.detail.includes('=>')) {
       console.log(`[CCoding] 检测方法2: detail包含箭头符号 ✅`)
       console.log(`[CCoding]   - detail: "${symbol.detail}"`)
       return true
     }
-    
+
     // 方法3: 检查Property/Field类型的箭头模式
     if (symbol.kind === vscode.SymbolKind.Property || symbol.kind === vscode.SymbolKind.Field) {
       const arrowPatterns = [
-        /=\s*\([^)]*\)\s*=>/,           // = () => 或 = (params) =>
-        /=\s*async\s*\([^)]*\)\s*=>/,  // = async () =>
-        /=\s*\w+\s*=>/,                // = param =>
+        /=\s*\([^)]*\)\s*=>/, // = () => 或 = (params) =>
+        /=\s*async\s*\([^)]*\)\s*=>/, // = async () =>
+        /=\s*\w+\s*=>/, // = param =>
       ]
-      
+
       for (const pattern of arrowPatterns) {
         if (pattern.test(signature)) {
           console.log(`[CCoding] 检测方法3: Property/Field匹配箭头模式 ✅`)
@@ -1277,20 +1291,20 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         }
       }
     }
-    
+
     // 🔥 方法4: 专门检查Variable类型的箭头函数（Vue关键修复）
     if (symbol.kind === vscode.SymbolKind.Variable) {
       console.log(`[CCoding] 🎯 Variable专项检测: ${symbol.name}`)
-      
+
       // Variable类型的箭头函数模式（更宽松）
       const variableArrowPatterns = [
-        /=\s*\([^)]*\)\s*=>/,           // const increment = () =>
-        /=\s*async\s*\([^)]*\)\s*=>/,  // const increment = async () =>
-        /=\s*\w+\s*=>/,                // const increment = x =>
-        /=\s*function/,                // const increment = function
-        /:\s*\([^)]*\)\s*=>/,          // 对象方法形式
+        /=\s*\([^)]*\)\s*=>/, // const increment = () =>
+        /=\s*async\s*\([^)]*\)\s*=>/, // const increment = async () =>
+        /=\s*\w+\s*=>/, // const increment = x =>
+        /=\s*function/, // const increment = function
+        /:\s*\([^)]*\)\s*=>/, // 对象方法形式
       ]
-      
+
       for (const pattern of variableArrowPatterns) {
         if (pattern.test(signature)) {
           console.log(`[CCoding] 检测方法4: Variable匹配箭头模式 ✅`)
@@ -1299,7 +1313,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
           return true
         }
       }
-      
+
       // Variable类型的detail检查（备用）
       if (symbol.detail) {
         const detailArrowPatterns = ['=>', 'function', '() =>', 'async']
@@ -1312,41 +1326,40 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
           }
         }
       }
-      
+
       console.log(`[CCoding] ❌ Variable专项检测失败: ${symbol.name}`)
       console.log(`[CCoding]   - 签名: "${signature || '无'}"`)
       console.log(`[CCoding]   - detail: "${symbol.detail || '无'}"`)
     }
-    
+
     console.log(`[CCoding] ❌ 箭头函数检测: ${symbol.name} 不是箭头函数`)
     return false
   }
-
 
   /**
    * 检查符号是否为可调用的符号（函数、方法等）- 增强版本
    */
   private isCallableSymbol(symbol: vscode.DocumentSymbol): boolean {
     // 🔥 立即检查所有函数符号类型（包括新增的Variable）
-    if (symbol.kind === vscode.SymbolKind.Function || 
-        symbol.kind === vscode.SymbolKind.Method || 
-        symbol.kind === vscode.SymbolKind.Constructor) {
+    if (symbol.kind === vscode.SymbolKind.Function
+      || symbol.kind === vscode.SymbolKind.Method
+      || symbol.kind === vscode.SymbolKind.Constructor) {
       console.log(`[CCoding] ✅ isCallableSymbol: ${symbol.name} 是标准函数类型 (${symbol.kind})`)
       return true
     }
-    
+
     // 检查属性是否为函数（通过detail）
     if (symbol.kind === vscode.SymbolKind.Property && symbol.detail) {
-      const isArrowProperty = symbol.detail.includes('=>') || 
-                             symbol.detail.includes('function') ||
-                             symbol.detail.includes('get ') ||
-                             symbol.detail.includes('set ')
+      const isArrowProperty = symbol.detail.includes('=>')
+        || symbol.detail.includes('function')
+        || symbol.detail.includes('get ')
+        || symbol.detail.includes('set ')
       if (isArrowProperty) {
         console.log(`[CCoding] ✅ isCallableSymbol: ${symbol.name} 是属性函数 (detail: ${symbol.detail})`)
       }
       return isArrowProperty
     }
-    
+
     // 检查字段是否为函数赋值
     if (symbol.kind === vscode.SymbolKind.Field && symbol.detail) {
       const isArrowField = symbol.detail.includes('=>') || symbol.detail.includes('function')
@@ -1355,12 +1368,12 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       }
       return isArrowField
     }
-    
+
     // 🔥 关键修复：检查变量是否为箭头函数
     if (symbol.kind === vscode.SymbolKind.Variable) {
       console.log(`[CCoding] 🔍 检查Variable: ${symbol.name}`)
       console.log(`[CCoding]   - detail: "${symbol.detail || '无'}"`)
-      
+
       // 方法1：通过detail检查
       if (symbol.detail) {
         const isArrowVariable = symbol.detail.includes('=>') || symbol.detail.includes('function')
@@ -1369,24 +1382,24 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
           return true
         }
       }
-      
+
       // 方法2：通过名称模式检查（针对Vue的特殊情况）
       // 如果是increment这样的典型函数名，先标记为可能的函数
       const functionLikeNames = ['increment', 'decrement', 'toggle', 'handle', 'on', 'click', 'submit']
-      const couldBeFunction = functionLikeNames.some(pattern => 
-        symbol.name.toLowerCase().includes(pattern) ||
-        symbol.name.match(/^[a-z][a-zA-Z]*$/) // 驼峰命名的变量
+      const couldBeFunction = functionLikeNames.some(pattern =>
+        symbol.name.toLowerCase().includes(pattern)
+        || symbol.name.match(/^[a-z][a-zA-Z]*$/), // 驼峰命名的变量
       )
-      
+
       if (couldBeFunction) {
         console.log(`[CCoding] 🤔 isCallableSymbol: ${symbol.name} 是可疑的函数变量，允许进入下一步检查`)
         return true // 允许进入extractFunctions进行更深入的检查
       }
-      
+
       console.log(`[CCoding] ❌ isCallableSymbol: ${symbol.name} 不是函数变量`)
       return false
     }
-    
+
     console.log(`[CCoding] ❌ isCallableSymbol: ${symbol.name} 不是可调用符号 (kind: ${symbol.kind})`)
     return false
   }
@@ -1532,7 +1545,8 @@ class FunctionItem extends vscode.TreeItem {
     // 设置折叠状态
     if (details.children && details.children.length > 0) {
       this.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed
-    } else {
+    }
+    else {
       this.collapsibleState = vscode.TreeItemCollapsibleState.None
     }
 
@@ -1543,30 +1557,31 @@ class FunctionItem extends vscode.TreeItem {
     const privateInfo = details.isPrivate ? '🔒 ' : ''
     const lifecycleInfo = details.isLifecycle ? '🔄 ' : ''
     const complexityInfo = this.getComplexityIndicator(details.complexity || 1)
-    
+
     this.label = `${privateInfo}${lifecycleInfo}${asyncInfo}${details.name}${params}${typeInfo}`
     this.description = `Line ${details.range.start.line + 1} ${complexityInfo}`
 
     // 构建详细的tooltip
     let tooltip = `${details.name}${params}${typeInfo}\n`
     tooltip += `📁 Line ${details.range.start.line + 1}\n`
-    
+
     // 显示符号类型
     if (details.customKind) {
       tooltip += `🔧 ${this.getCustomKindDisplayName(details.customKind)}\n`
-    } else {
+    }
+    else {
       tooltip += `🔧 ${this.getKindDisplayName(details.kind)}\n`
     }
-    
+
     // 显示层级信息
     if (details.level > 0) {
       tooltip += `📊 Level: ${details.level} (nested)\n`
     }
-    
+
     if (details.parent) {
       tooltip += `🔗 Parent: ${details.parent.name}\n`
     }
-    
+
     tooltip += `🎯 Complexity: ${this.getComplexityName(details.complexity || 1)}\n`
 
     if (details.signature) {
@@ -1684,16 +1699,18 @@ class FunctionItem extends vscode.TreeItem {
     if (details.customKind) {
       iconName = this.getIconNameForCustomKind(details.customKind)
       color = this.getColorForCustomKind(details.customKind)
-    } else {
+    }
+    else {
       iconName = this.getIconNameForKind(details.kind)
-      
+
       // 根据层级调整图标
       if (details.level > 0) {
         // 子级函数使用不同的图标
         if (details.kind === vscode.SymbolKind.Function) {
-          iconName = 'symbol-property'  // 嵌套函数使用属性图标
-        } else if (details.kind === vscode.SymbolKind.Method) {
-          iconName = 'symbol-field'     // 嵌套方法使用字段图标
+          iconName = 'symbol-property' // 嵌套函数使用属性图标
+        }
+        else if (details.kind === vscode.SymbolKind.Method) {
+          iconName = 'symbol-field' // 嵌套方法使用字段图标
         }
       }
     }

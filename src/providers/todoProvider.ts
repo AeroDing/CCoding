@@ -13,7 +13,7 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
   readonly onDidChangeTreeData: vscode.Event<TodoTreeItem | undefined | null | void> = this._onDidChangeTreeData.event
 
   private todos: TodoItem[] = []
-  private todoRegex = /(?:\/\/|\/\*|<!--|[#*;]|\{\s*\/\*|\{\s*\/\/|REM\s)\s*(TODO|FIXME|NOTE|HACK|BUG)(?:\s*\(([^)]+)\))?\s*(?::\s*)?(.+?)(?:\*\/|-->|$)/gi
+  private todoRegex = /(TODO|FIXME|NOTE|HACK|BUG)(?:\(([^)]+)\))?:?\s*(.+)/gi
   private decorationTypes: Map<string, vscode.TextEditorDecorationType> = new Map()
   private isScanning: boolean = false
   private scanTimeout: NodeJS.Timeout | undefined
@@ -88,7 +88,7 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
     const currentDocTodos: TodoItem[] = []
 
     lines.forEach((line, index) => {
-      const regex = /(?:\/\/|\/\*|<!--|[#*;]|\{\s*\/\*|\{\s*\/\/|REM\s)\s*(TODO|FIXME|NOTE|HACK|BUG)(?:\s*\(([^)]+)\))?\s*(?::\s*)?(.+?)(?:\*\/|-->|$)/gi
+      const regex = /(TODO|FIXME|NOTE|HACK|BUG)(?:\(([^)]+)\))?:?\s*(.+)/gi
       let match
 
       match = regex.exec(line)
@@ -227,7 +227,7 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
       const lines = content.split('\n')
 
       lines.forEach((line, index) => {
-        const regex = /(?:\/\/|\/\*|<!--|[#*;]|\{\s*\/\*|\{\s*\/\/|REM\s)\s*(TODO|FIXME|NOTE|HACK|BUG)(?:\s*\(([^)]+)\))?\s*(?::\s*)?(.+?)(?:\*\/|-->|$)/gi
+        const regex = /(TODO|FIXME|NOTE|HACK|BUG)(?:\(([^)]+)\))?:?\s*(.+)/gi
         let match
 
         match = regex.exec(line)
