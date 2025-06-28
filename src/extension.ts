@@ -173,11 +173,11 @@ export function activate(context: vscode.ExtensionContext) {
       // 使用防抖处理文档变更事件，避免频繁触发
       vscode.workspace.onDidChangeTextDocument((event) => {
         // 只在用户主动编辑时刷新，忽略程序化变更
-        if (event.reason === vscode.TextDocumentChangeReason.Undo || 
-            event.reason === vscode.TextDocumentChangeReason.Redo) {
+        if (event.reason === vscode.TextDocumentChangeReason.Undo
+          || event.reason === vscode.TextDocumentChangeReason.Redo) {
           return
         }
-        
+
         // 防抖处理
         if (documentChangeTimeout) {
           clearTimeout(documentChangeTimeout)

@@ -35,7 +35,7 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
   setCurrentTab(tab: 'current' | 'all'): void {
     if (this.currentTab !== tab) {
       console.log(`[CCoding] TODO切换模式: ${this.currentTab} -> ${tab}`)
-      
+
       // 中断当前扫描
       if (this.isScanning) {
         console.log('[CCoding] 中断当前TODO扫描，切换模式')
@@ -44,7 +44,7 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
           clearTimeout(this.scanTimeout)
         }
       }
-      
+
       this.currentTab = tab
       this._onDidChangeTreeData.fire()
     }
@@ -218,7 +218,8 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
             return
           }
         }
-      } else {
+      }
+      else {
         // 当前文件模式，只扫描当前文件
         this.scanCurrentDocument()
       }
@@ -245,13 +246,13 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
       // 只扫描前端开发相关的主要文件类型，减少扫描范围
       const pattern = new vscode.RelativePattern(folderUri, '**/*.{js,ts,jsx,tsx,vue,html,css,scss,md}')
       const files = await vscode.workspace.findFiles(
-        pattern, 
-        '**/node_modules/**', 
-        1000 // 限制最大文件数量，防止扫描过多文件
+        pattern,
+        '**/node_modules/**',
+        1000, // 限制最大文件数量，防止扫描过多文件
       )
 
       console.log(`[CCoding] TODO扫描：找到 ${files.length} 个文件`)
-      
+
       // 分批处理文件，避免一次性处理过多
       const batchSize = 50
       for (let i = 0; i < files.length; i += batchSize) {
@@ -259,17 +260,19 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
           console.log('[CCoding] TODO扫描被中断（文件夹扫描）')
           break
         }
-        
+
         const batch = files.slice(i, i + batchSize)
         for (const file of batch) {
-          if (!this.isScanning) break
+          if (!this.isScanning)
+            break
           await this.scanFile(file)
         }
-        
+
         // 每批处理后稍作延迟，让出CPU时间
         await new Promise(resolve => setTimeout(resolve, 10))
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('[CCoding] TODO文件夹扫描错误:', error)
     }
   }
@@ -484,20 +487,20 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
 
   dispose(): void {
     console.log('[CCoding] 清理TODO Provider资源')
-    
+
     // 停止扫描
     this.isScanning = false
     if (this.scanTimeout) {
       clearTimeout(this.scanTimeout)
       this.scanTimeout = undefined
     }
-    
+
     // 清理装饰器
     this.decorationTypes.forEach((decorationType) => {
       decorationType.dispose()
     })
     this.decorationTypes.clear()
-    
+
     // 清理数据
     this.todos = []
     this.currentDocumentTodos.clear()

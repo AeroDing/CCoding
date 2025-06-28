@@ -56,14 +56,14 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    */
   dispose(): void {
     console.log('[CCoding] 清理Function Provider资源')
-    
+
     // 停止刷新
     this.isRefreshing = false
     if (this.refreshTimeout) {
       clearTimeout(this.refreshTimeout)
       this.refreshTimeout = undefined
     }
-    
+
     this.clearAllState()
   }
 
@@ -89,8 +89,9 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   }
 
   private async performRefresh(): Promise<void> {
-    if (this.isRefreshing) return
-    
+    if (this.isRefreshing)
+      return
+
     this.isRefreshing = true
     try {
       console.log('[CCoding] 开始Function解析...')
@@ -99,12 +100,14 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       this.validateState()
       this._onDidChangeTreeData.fire()
       console.log('[CCoding] Function解析完成')
-    } catch (error) {
+    }
+    catch (error) {
       console.error('[CCoding] Function解析错误:', error)
       // 出错时清理状态，防止显示不一致的数据
       this.clearAllState()
       this._onDidChangeTreeData.fire()
-    } finally {
+    }
+    finally {
       this.isRefreshing = false
     }
   }
@@ -152,28 +155,29 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   getChildren(element?: FunctionItem): Thenable<FunctionItem[]> {
     if (!element) {
       // 返回根级别的项目，并应用搜索过滤
-      const filteredItems = this.rootItems.filter(item => {
-        if (!this.searchQuery) return true
+      const filteredItems = this.rootItems.filter((item) => {
+        if (!this.searchQuery)
+          return true
         return this.matchesSearchQuery(item)
       })
-      
+
       // 如果有搜索查询，自动展开匹配的分组
       if (this.searchQuery) {
-        filteredItems.forEach(item => {
+        filteredItems.forEach((item) => {
           if (item.isGroup && this.matchesSearchQuery(item)) {
             // 确保分组在搜索时是展开的
             item.collapsibleState = vscode.TreeItemCollapsibleState.Expanded
           }
         })
       }
-      
+
       return Promise.resolve(filteredItems)
     }
 
     // 返回子项目，并应用搜索过滤
     if (element.children) {
       let filteredChildren = element.children
-      
+
       if (this.searchQuery) {
         // 对于分组项，如果分组本身匹配，显示所有子项
         // 如果分组不匹配，只显示匹配的子项
@@ -182,20 +186,22 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
           if (groupNameMatches) {
             // 分组名称匹配，显示所有子项
             filteredChildren = element.children
-          } else {
+          }
+          else {
             // 分组名称不匹配，只显示匹配的子项
-            filteredChildren = element.children.filter(child => 
-              this.matchesSearchQuery(child)
+            filteredChildren = element.children.filter(child =>
+              this.matchesSearchQuery(child),
             )
           }
-        } else {
+        }
+        else {
           // 非分组项，正常过滤
           filteredChildren = element.children.filter(child =>
-            this.matchesSearchQuery(child)
+            this.matchesSearchQuery(child),
           )
         }
       }
-      
+
       return Promise.resolve(filteredChildren)
     }
 
@@ -206,8 +212,9 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    * 检查分组名称是否匹配搜索查询
    */
   private groupNameMatches(groupName: string): boolean {
-    if (!this.searchQuery) return true
-    
+    if (!this.searchQuery)
+      return true
+
     const cleanGroupName = groupName.replace(/\s*\(\d+\)$/, '').toLowerCase()
     return cleanGroupName.includes(this.searchQuery)
   }
@@ -243,7 +250,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
 
     // 对于普通符号项，进行多字段搜索
     const searchTargets = this.getSearchTargets(item)
-    
+
     for (const target of searchTargets) {
       if (target && target.toLowerCase().includes(this.searchQuery)) {
         console.log(`[CCoding] ✅ 匹配字段: "${target}"`)
@@ -317,9 +324,9 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   private cleanSearchString(str: string): string {
     return str
       // 去除emoji
-      .replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+      .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
       // 去除特殊符号
-      .replace(/[🔒🔄⚡💻🪝]/g, '')
+      .replace(/[🔒�⚡🪝]/gu, '')
       // 去除多余空格
       .replace(/\s+/g, ' ')
       .trim()
@@ -815,13 +822,13 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    */
   private async extractAdditionalSymbols(document: vscode.TextDocument) {
     const content = document.getText()
-    
+
     // 限制处理的文档大小，避免处理过大文件
     if (content.length > 500000) { // 500KB 限制
       console.log(`[CCoding] 文件过大 (${content.length} 字符)，跳过额外符号解析`)
       return
     }
-    
+
     const lines = content.split('\n')
     const isVueFile = document.fileName.toLowerCase().endsWith('.vue')
 
@@ -867,7 +874,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       let matchCount = 0
       let iterationCount = 0
       const maxIterations = 1000 // 防止无限循环
-      
+
       match = pattern.exec(content)
       while (match !== null && iterationCount < maxIterations) {
         iterationCount++
@@ -952,7 +959,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         }
 
         match = pattern.exec(content)
-        
+
         // 防止无限循环的额外保护
         if (iterationCount >= maxIterations) {
           console.warn(`[CCoding] 模式${patternIndex}匹配次数超限，停止处理`)
@@ -1174,19 +1181,17 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   /**
    * 带冲突检查的DOM元素提取
    */
-  private async extractDOMElementsWithConflictCheck(document: vscode.TextDocument) {
+  private async extractDOMElementsWithConflictCheck(_document: vscode.TextDocument) {
     // 跳过DOM解析，减少性能开销
     console.log(`[CCoding] 跳过DOM解析（性能优化）`)
-    return
   }
 
   /**
    * 带冲突检查的CSS规则提取
    */
-  private async extractCSSRulesWithConflictCheck(document: vscode.TextDocument) {
-    // 跳过CSS解析，减少性能开销  
+  private async extractCSSRulesWithConflictCheck(_document: vscode.TextDocument) {
+    // 跳过CSS解析，减少性能开销
     console.log(`[CCoding] 跳过CSS解析（性能优化）`)
-    return
   }
 
   /**
@@ -1681,15 +1686,15 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   async searchFunctions(query: string): Promise<void> {
     const originalQuery = query || ''
     const processedQuery = this.preprocessSearchQuery(originalQuery)
-    
+
     console.log(`[CCoding] 符号搜索: "${originalQuery}" -> "${processedQuery}"`)
-    
+
     this.searchQuery = processedQuery
 
     // 如果有搜索查询，立即刷新以显示过滤结果
     // 如果查询为空，也刷新以清除过滤
     this._onDidChangeTreeData.fire()
-    
+
     // 输出搜索统计
     if (this.searchQuery) {
       this.logSearchStatistics()
@@ -1700,43 +1705,44 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    * 预处理搜索查询，提高搜索的准确性和灵活性
    */
   private preprocessSearchQuery(query: string): string {
-    if (!query) return ''
+    if (!query)
+      return ''
 
     let processed = query.trim().toLowerCase()
 
     // 处理常见的搜索模式
-    
+
     // 1. 去除引号
     processed = processed.replace(/['"]/g, '')
-    
+
     // 2. 处理驼峰命名的搜索 - 如果用户输入的是驼峰，转为小写
     // 但保留原有的字符以支持精确匹配
-    
+
     // 3. 处理函数相关的关键词
     const functionKeywords: Record<string, string> = {
-      'function': 'function',
-      'func': 'function', 
-      'method': 'method',
-      'arrow': 'arrow-function',
-      'async': 'async',
-      'lifecycle': 'lifecycle',
-      'hook': 'hook',
-      'react': 'react',
-      'vue': 'vue'
+      function: 'function',
+      func: 'function',
+      method: 'method',
+      arrow: 'arrow-function',
+      async: 'async',
+      lifecycle: 'lifecycle',
+      hook: 'hook',
+      react: 'react',
+      vue: 'vue',
     }
-    
+
     // 如果搜索查询是已知的关键词，直接使用映射
     if (functionKeywords[processed]) {
       processed = functionKeywords[processed]
       console.log(`[CCoding] 关键词映射: ${query} -> ${processed}`)
     }
-    
+
     // 4. 特殊字符处理 - 保持搜索查询的简洁性
     processed = processed.replace(/[^\w\s-]/g, '')
-    
+
     // 5. 去除多余空格
     processed = processed.replace(/\s+/g, ' ').trim()
-    
+
     return processed
   }
 
@@ -1744,13 +1750,14 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    * 输出搜索统计信息
    */
   private logSearchStatistics(): void {
-    if (!this.searchQuery) return
+    if (!this.searchQuery)
+      return
 
     let totalMatches = 0
     let groupMatches = 0
-    
+
     const countMatches = (items: FunctionItem[]): void => {
-      items.forEach(item => {
+      items.forEach((item) => {
         if (this.matchesSearchQuery(item)) {
           totalMatches++
           if (item.isGroup) {
@@ -1762,11 +1769,11 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         }
       })
     }
-    
+
     countMatches(this.rootItems)
-    
+
     console.log(`[CCoding] 搜索统计 "${this.searchQuery}": 共 ${totalMatches} 个匹配项 (${groupMatches} 个分组)`)
-    
+
     // 如果没有匹配项，提供搜索建议
     if (totalMatches === 0) {
       console.log(`[CCoding] 搜索建议: 尝试搜索 "function", "method", "async", "arrow", "react", "vue" 等关键词`)
@@ -1780,10 +1787,10 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
     if (this.searchQuery) {
       console.log(`[CCoding] 清除符号搜索: "${this.searchQuery}"`)
       this.searchQuery = ''
-      
+
       // 重置分组的折叠状态
       this.resetGroupCollapsibleStates()
-      
+
       // 立即刷新树视图
       this._onDidChangeTreeData.fire()
     }
@@ -1793,7 +1800,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    * 重置分组的折叠状态为默认状态
    */
   private resetGroupCollapsibleStates(): void {
-    this.rootItems.forEach(item => {
+    this.rootItems.forEach((item) => {
       if (item.isGroup) {
         // 重置为默认的展开状态
         item.collapsibleState = vscode.TreeItemCollapsibleState.Expanded
