@@ -152,19 +152,64 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
   getChildren(element?: FunctionItem): Thenable<FunctionItem[]> {
     if (!element) {
       // 返回根级别的项目，并应用搜索过滤
-      return Promise.resolve(this.rootItems.filter(item =>
-        !this.searchQuery || this.matchesSearchQuery(item),
-      ))
+      const filteredItems = this.rootItems.filter(item => {
+        if (!this.searchQuery) return true
+        return this.matchesSearchQuery(item)
+      })
+      
+      // 如果有搜索查询，自动展开匹配的分组
+      if (this.searchQuery) {
+        filteredItems.forEach(item => {
+          if (item.isGroup && this.matchesSearchQuery(item)) {
+            // 确保分组在搜索时是展开的
+            item.collapsibleState = vscode.TreeItemCollapsibleState.Expanded
+          }
+        })
+      }
+      
+      return Promise.resolve(filteredItems)
     }
 
     // 返回子项目，并应用搜索过滤
     if (element.children) {
-      return Promise.resolve(element.children.filter(child =>
-        !this.searchQuery || this.matchesSearchQuery(child),
-      ))
+      let filteredChildren = element.children
+      
+      if (this.searchQuery) {
+        // 对于分组项，如果分组本身匹配，显示所有子项
+        // 如果分组不匹配，只显示匹配的子项
+        if (element.isGroup) {
+          const groupNameMatches = this.groupNameMatches(element.name)
+          if (groupNameMatches) {
+            // 分组名称匹配，显示所有子项
+            filteredChildren = element.children
+          } else {
+            // 分组名称不匹配，只显示匹配的子项
+            filteredChildren = element.children.filter(child => 
+              this.matchesSearchQuery(child)
+            )
+          }
+        } else {
+          // 非分组项，正常过滤
+          filteredChildren = element.children.filter(child =>
+            this.matchesSearchQuery(child)
+          )
+        }
+      }
+      
+      return Promise.resolve(filteredChildren)
     }
 
     return Promise.resolve([])
+  }
+
+  /**
+   * 检查分组名称是否匹配搜索查询
+   */
+  private groupNameMatches(groupName: string): boolean {
+    if (!this.searchQuery) return true
+    
+    const cleanGroupName = groupName.replace(/\s*\(\d+\)$/, '').toLowerCase()
+    return cleanGroupName.includes(this.searchQuery)
   }
 
   /**
@@ -174,17 +219,110 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
     if (!this.searchQuery)
       return true
 
-    // 检查当前项目名称
-    if (item.label.toString().toLowerCase().includes(this.searchQuery)) {
-      return true
+    console.log(`[CCoding] 搜索匹配检查: "${item.name}" vs "${this.searchQuery}"`)
+
+    // 如果是分组项，检查分组名称和子项
+    if (item.isGroup) {
+      // 检查分组名称（去除计数部分）
+      const groupName = item.name.replace(/\s*\(\d+\)$/, '').toLowerCase()
+      if (groupName.includes(this.searchQuery)) {
+        console.log(`[CCoding] ✅ 分组名称匹配: ${groupName}`)
+        return true
+      }
+
+      // 检查分组内的子项
+      if (item.children) {
+        const hasMatchingChild = item.children.some(child => this.matchesSearchQuery(child))
+        if (hasMatchingChild) {
+          console.log(`[CCoding] ✅ 分组内有匹配项`)
+        }
+        return hasMatchingChild
+      }
+      return false
+    }
+
+    // 对于普通符号项，进行多字段搜索
+    const searchTargets = this.getSearchTargets(item)
+    
+    for (const target of searchTargets) {
+      if (target && target.toLowerCase().includes(this.searchQuery)) {
+        console.log(`[CCoding] ✅ 匹配字段: "${target}"`)
+        return true
+      }
     }
 
     // 递归检查子项
     if (item.children) {
-      return item.children.some(child => this.matchesSearchQuery(child))
+      const hasMatchingChild = item.children.some(child => this.matchesSearchQuery(child))
+      if (hasMatchingChild) {
+        console.log(`[CCoding] ✅ 子项中有匹配`)
+      }
+      return hasMatchingChild
     }
 
+    console.log(`[CCoding] ❌ 无匹配`)
     return false
+  }
+
+  /**
+   * 获取可搜索的字段列表
+   */
+  private getSearchTargets(item: FunctionItem): string[] {
+    const targets: string[] = []
+
+    // 1. 原始函数名（最重要）
+    if (item.details?.name) {
+      targets.push(item.details.name)
+    }
+
+    // 2. 清理后的标签（去除emoji和格式化符号）
+    if (item.label) {
+      const cleanLabel = this.cleanSearchString(item.label.toString())
+      targets.push(cleanLabel)
+    }
+
+    // 3. 函数签名（去除格式化）
+    if (item.details?.signature) {
+      const cleanSignature = this.cleanSearchString(item.details.signature)
+      targets.push(cleanSignature)
+    }
+
+    // 4. 自定义类型名称
+    if (item.details?.customKind) {
+      targets.push(item.details.customKind)
+    }
+
+    // 5. 框架类型
+    if (item.details?.frameworkType && item.details.frameworkType !== 'general') {
+      targets.push(item.details.frameworkType)
+    }
+
+    // 6. 生命周期标识
+    if (item.details?.isLifecycle) {
+      targets.push('lifecycle')
+    }
+
+    // 7. 异步函数标识
+    if (item.details?.additionalInfo?.isAsync) {
+      targets.push('async')
+    }
+
+    console.log(`[CCoding] 搜索目标字段: [${targets.join(', ')}]`)
+    return targets
+  }
+
+  /**
+   * 清理搜索字符串，去除emoji和特殊格式化字符
+   */
+  private cleanSearchString(str: string): string {
+    return str
+      // 去除emoji
+      .replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+      // 去除特殊符号
+      .replace(/[🔒🔄⚡💻🪝]/g, '')
+      // 去除多余空格
+      .replace(/\s+/g, ' ')
+      .trim()
   }
 
   /**
@@ -1541,18 +1679,126 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    * @description 在符号名称中搜索匹配的内容，结果直接在树视图中过滤显示
    */
   async searchFunctions(query: string): Promise<void> {
-    this.searchQuery = query ? query.toLowerCase().trim() : ''
+    const originalQuery = query || ''
+    const processedQuery = this.preprocessSearchQuery(originalQuery)
+    
+    console.log(`[CCoding] 符号搜索: "${originalQuery}" -> "${processedQuery}"`)
+    
+    this.searchQuery = processedQuery
 
-    // 直接刷新树视图，使用新的搜索条件
-    this.refresh()
+    // 如果有搜索查询，立即刷新以显示过滤结果
+    // 如果查询为空，也刷新以清除过滤
+    this._onDidChangeTreeData.fire()
+    
+    // 输出搜索统计
+    if (this.searchQuery) {
+      this.logSearchStatistics()
+    }
+  }
+
+  /**
+   * 预处理搜索查询，提高搜索的准确性和灵活性
+   */
+  private preprocessSearchQuery(query: string): string {
+    if (!query) return ''
+
+    let processed = query.trim().toLowerCase()
+
+    // 处理常见的搜索模式
+    
+    // 1. 去除引号
+    processed = processed.replace(/['"]/g, '')
+    
+    // 2. 处理驼峰命名的搜索 - 如果用户输入的是驼峰，转为小写
+    // 但保留原有的字符以支持精确匹配
+    
+    // 3. 处理函数相关的关键词
+    const functionKeywords: Record<string, string> = {
+      'function': 'function',
+      'func': 'function', 
+      'method': 'method',
+      'arrow': 'arrow-function',
+      'async': 'async',
+      'lifecycle': 'lifecycle',
+      'hook': 'hook',
+      'react': 'react',
+      'vue': 'vue'
+    }
+    
+    // 如果搜索查询是已知的关键词，直接使用映射
+    if (functionKeywords[processed]) {
+      processed = functionKeywords[processed]
+      console.log(`[CCoding] 关键词映射: ${query} -> ${processed}`)
+    }
+    
+    // 4. 特殊字符处理 - 保持搜索查询的简洁性
+    processed = processed.replace(/[^\w\s-]/g, '')
+    
+    // 5. 去除多余空格
+    processed = processed.replace(/\s+/g, ' ').trim()
+    
+    return processed
+  }
+
+  /**
+   * 输出搜索统计信息
+   */
+  private logSearchStatistics(): void {
+    if (!this.searchQuery) return
+
+    let totalMatches = 0
+    let groupMatches = 0
+    
+    const countMatches = (items: FunctionItem[]): void => {
+      items.forEach(item => {
+        if (this.matchesSearchQuery(item)) {
+          totalMatches++
+          if (item.isGroup) {
+            groupMatches++
+          }
+        }
+        if (item.children) {
+          countMatches(item.children)
+        }
+      })
+    }
+    
+    countMatches(this.rootItems)
+    
+    console.log(`[CCoding] 搜索统计 "${this.searchQuery}": 共 ${totalMatches} 个匹配项 (${groupMatches} 个分组)`)
+    
+    // 如果没有匹配项，提供搜索建议
+    if (totalMatches === 0) {
+      console.log(`[CCoding] 搜索建议: 尝试搜索 "function", "method", "async", "arrow", "react", "vue" 等关键词`)
+    }
   }
 
   /**
    * 清除搜索状态
    */
   clearSearch(): void {
-    this.searchQuery = ''
-    this.refresh()
+    if (this.searchQuery) {
+      console.log(`[CCoding] 清除符号搜索: "${this.searchQuery}"`)
+      this.searchQuery = ''
+      
+      // 重置分组的折叠状态
+      this.resetGroupCollapsibleStates()
+      
+      // 立即刷新树视图
+      this._onDidChangeTreeData.fire()
+    }
+  }
+
+  /**
+   * 重置分组的折叠状态为默认状态
+   */
+  private resetGroupCollapsibleStates(): void {
+    this.rootItems.forEach(item => {
+      if (item.isGroup) {
+        // 重置为默认的展开状态
+        item.collapsibleState = vscode.TreeItemCollapsibleState.Expanded
+      }
+    })
   }
 }
 

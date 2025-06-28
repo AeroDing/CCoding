@@ -110,6 +110,11 @@ export class TabSwitcherProvider implements vscode.WebviewViewProvider {
             font-size: 12px;
             cursor: pointer;
             border-right: 1px solid var(--vscode-input-border);
+            transition: all 0.2s ease;
+        }
+        
+        .search-type-select.hidden {
+            display: none !important;
         }
         
         .search-type-select:focus {
@@ -120,6 +125,11 @@ export class TabSwitcherProvider implements vscode.WebviewViewProvider {
         .search-input-container {
             position: relative;
             flex: 1;
+            transition: border-left 0.2s ease;
+        }
+        
+        .search-input-container.full-width {
+            border-left: none !important;
         }
         
         .search-input {
@@ -202,7 +212,7 @@ export class TabSwitcherProvider implements vscode.WebviewViewProvider {
                 <option value="pinnedSymbols">置顶</option>
                 <option value="functions">函数</option>
             </select>
-            <div class="search-input-container">
+            <div class="search-input-container" id="searchInputContainer">
                 <input type="text" class="search-input" id="searchInput" placeholder="输入关键字搜索...">
                 <span class="search-indicator" id="searchIndicator">🔍</span>
             </div>
@@ -372,14 +382,21 @@ export class TabSwitcherProvider implements vscode.WebviewViewProvider {
             });
             document.getElementById(tab + 'Tab').classList.add('active');
             
-            // 控制搜索类型选择器的显示
+            // 控制搜索类型选择器的显示和搜索框样式
             const searchTypeSelect = document.getElementById('searchTypeSelect');
+            const searchInputContainer = document.getElementById('searchInputContainer');
+            const searchInput = document.getElementById('searchInput');
+            
             if (tab === 'symbols') {
-                searchTypeSelect.style.display = 'none';
-                searchTypeSelect.parentElement.querySelector('.search-input-container').style.borderLeft = 'none';
+                // 符号模式：隐藏类型选择器，搜索框占满宽度
+                searchTypeSelect.classList.add('hidden');
+                searchInputContainer.classList.add('full-width');
+                searchInput.placeholder = '搜索函数、方法、类等符号...';
             } else {
-                searchTypeSelect.style.display = 'block';
-                searchTypeSelect.parentElement.querySelector('.search-input-container').style.borderLeft = '1px solid var(--vscode-input-border)';
+                // 其他模式：显示类型选择器，恢复正常样式
+                searchTypeSelect.classList.remove('hidden');
+                searchInputContainer.classList.remove('full-width');
+                searchInput.placeholder = '输入关键字搜索...';
             }
             
             // 更新搜索提示文本
@@ -388,7 +405,7 @@ export class TabSwitcherProvider implements vscode.WebviewViewProvider {
         
         function updateSearchInfo() {
             if (currentActiveTab === 'symbols') {
-                searchInfo.textContent = '在当前文件的符号中搜索';
+                searchInfo.textContent = '支持搜索：函数名、async、arrow、react、vue 等关键词';
             } else {
                 const scopeText = currentActiveTab === 'current' ? '当前文件' : '整个项目';
                 const typeText = getSearchTypeText(currentSearchType);
