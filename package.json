@@ -3,7 +3,7 @@
   "name": "CCoding",
   "displayName": "CCoding",
   "version": "0.2.3",
-  "description": "A comprehensive coding assistant with function lists, bookmarks, quick navigation, symbol pinning, todo lists, timeline, and keyword search for Vue/React development",
+  "description": "A comprehensive coding assistant with function lists, bookmarks, quick navigation, symbol pinning, todo lists, timeline, and keyword search for development",
   "author": "Pxin Ding",
   "license": "MIT",
   "repository": {
@@ -143,24 +143,27 @@
         },
         {
           "id": "CCoding.functionList",
-          "name": "函数列表",
-          "when": "resourceExtname == .js || resourceExtname == .ts || resourceExtname == .vue || resourceExtname == .jsx || resourceExtname == .tsx",
+          "name": "符号列表",
+          "when": "CCoding.currentTab == 'symbols' && (resourceExtname == .js || resourceExtname == .ts || resourceExtname == .vue || resourceExtname == .jsx || resourceExtname == .tsx || resourceExtname == .html || resourceExtname == .css || resourceExtname == .scss || resourceExtname == .less)",
           "visibility": "visible"
         },
         {
           "id": "CCoding.bookmarks",
           "name": "书签",
-          "visibility": "collapsed"
+          "when": "CCoding.currentTab == 'current' || CCoding.currentTab == 'all'",
+          "visibility": "visible"
         },
         {
           "id": "CCoding.todos",
           "name": "待办事项",
-          "visibility": "collapsed"
+          "when": "CCoding.currentTab == 'current' || CCoding.currentTab == 'all'",
+          "visibility": "visible"
         },
         {
           "id": "CCoding.pinnedSymbols",
           "name": "置顶符号",
-          "visibility": "collapsed"
+          "when": "CCoding.currentTab == 'current' || CCoding.currentTab == 'all'",
+          "visibility": "visible"
         }
       ]
     },

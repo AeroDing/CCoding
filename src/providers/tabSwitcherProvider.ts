@@ -9,8 +9,8 @@ export class TabSwitcherProvider implements vscode.WebviewViewProvider {
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
-    private onTabSwitched: (tab: 'current' | 'all') => void,
-    private onSearchPerformed: (query: string, scope: 'current' | 'all', searchType: string) => void,
+    private onTabSwitched: (tab: 'current' | 'all' | 'symbols') => void,
+    private onSearchPerformed: (query: string, scope: 'current' | 'all' | 'symbols', searchType: string) => void,
   ) {}
 
   public resolveWebviewView(
@@ -46,7 +46,7 @@ export class TabSwitcherProvider implements vscode.WebviewViewProvider {
     )
   }
 
-  public updateCurrentTab(tab: 'current' | 'all') {
+  public updateCurrentTab(tab: 'current' | 'all' | 'symbols') {
     if (this._view) {
       this._view.webview.postMessage({ type: 'updateTab', tab })
     }
@@ -148,13 +148,13 @@ export class TabSwitcherProvider implements vscode.WebviewViewProvider {
         
         .tab-button {
             flex: 1;
-            padding: 6px 12px;
+            padding: 6px 8px;
             border: 1px solid var(--vscode-button-border);
             background-color: var(--vscode-button-secondaryBackground);
             color: var(--vscode-button-secondaryForeground);
             cursor: pointer;
             border-radius: 2px;
-            font-size: 12px;
+            font-size: 11px;
             text-align: center;
             transition: all 0.2s;
         }
@@ -211,13 +211,14 @@ export class TabSwitcherProvider implements vscode.WebviewViewProvider {
     </div>
     
     <div class="tab-container">
-        <button class="tab-button active" id="currentTab" data-tab="current">当前</button>
+        <button class="tab-button active" id="symbolsTab" data-tab="symbols">符号</button>
+        <button class="tab-button" id="currentTab" data-tab="current">当前</button>
         <button class="tab-button" id="allTab" data-tab="all">所有</button>
     </div>
 
     <script>
         const vscode = acquireVsCodeApi();
-        let currentActiveTab = 'current';
+        let currentActiveTab = 'symbols';
         let currentSearchType = 'all';
         
         // Tab切换逻辑
@@ -371,14 +372,28 @@ export class TabSwitcherProvider implements vscode.WebviewViewProvider {
             });
             document.getElementById(tab + 'Tab').classList.add('active');
             
+            // 控制搜索类型选择器的显示
+            const searchTypeSelect = document.getElementById('searchTypeSelect');
+            if (tab === 'symbols') {
+                searchTypeSelect.style.display = 'none';
+                searchTypeSelect.parentElement.querySelector('.search-input-container').style.borderLeft = 'none';
+            } else {
+                searchTypeSelect.style.display = 'block';
+                searchTypeSelect.parentElement.querySelector('.search-input-container').style.borderLeft = '1px solid var(--vscode-input-border)';
+            }
+            
             // 更新搜索提示文本
             updateSearchInfo();
         }
         
         function updateSearchInfo() {
-            const scopeText = currentActiveTab === 'current' ? '当前文件' : '整个项目';
-            const typeText = getSearchTypeText(currentSearchType);
-            searchInfo.textContent = '在' + scopeText + '的' + typeText + '中搜索';
+            if (currentActiveTab === 'symbols') {
+                searchInfo.textContent = '在当前文件的符号中搜索';
+            } else {
+                const scopeText = currentActiveTab === 'current' ? '当前文件' : '整个项目';
+                const typeText = getSearchTypeText(currentSearchType);
+                searchInfo.textContent = '在' + scopeText + '的' + typeText + '中搜索';
+            }
         }
         
         function getSearchTypeText(searchType) {

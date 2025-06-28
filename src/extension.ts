@@ -1,14 +1,13 @@
 import * as vscode from 'vscode'
 import { BookmarkProvider } from './providers/bookmarkProvider'
 import { FunctionListProvider } from './providers/functionListProvider'
-import { KeywordSearchProvider } from './providers/keywordSearchProvider'
 import { PinnedSymbolProvider } from './providers/pinnedSymbolProvider'
 import { TabSwitcherProvider } from './providers/tabSwitcherProvider'
 import { TimelineProvider } from './providers/timelineProvider'
 import { TodoProvider } from './providers/todoProvider'
 
 // 全局状态管理
-let currentTab: 'current' | 'all' = 'current'
+let currentTab: 'current' | 'all' | 'symbols' = 'symbols'
 let hasActiveSearch = false
 let searchQuery = ''
 
@@ -19,24 +18,24 @@ export function activate(context: vscode.ExtensionContext) {
     // 设置初始上下文
     vscode.commands.executeCommand('setContext', 'CCoding.currentTab', currentTab)
     vscode.commands.executeCommand('setContext', 'CCoding.hasActiveSearch', hasActiveSearch)
+    vscode.commands.executeCommand('setContext', 'CCoding.isSymbolsTab', true)
 
     const functionListProvider = new FunctionListProvider()
     const bookmarkProvider = new BookmarkProvider(context)
     const todoProvider = new TodoProvider()
     const pinnedSymbolProvider = new PinnedSymbolProvider(context)
     const timelineProvider = new TimelineProvider()
-    const keywordSearchProvider = new KeywordSearchProvider()
 
     // Provider初始化完成
 
     // 创建tab切换器webview
     const tabSwitcherProvider = new TabSwitcherProvider(
       context.extensionUri,
-      (tab: 'current' | 'all') => {
+      (tab: 'current' | 'all' | 'symbols') => {
         switchTab(tab, tabSwitcherProvider, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider)
       },
-      (query: string, scope: 'current' | 'all', searchType: string) => {
-        performSearch(scope, searchType, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider, keywordSearchProvider, query)
+      (query: string, scope: 'current' | 'all' | 'symbols', searchType: string) => {
+        performSearch(scope, searchType, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider, query)
       },
     )
 
@@ -45,7 +44,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.window.registerWebviewViewProvider(TabSwitcherProvider.viewType, tabSwitcherProvider),
     )
 
-    const _functionListTreeView = vscode.window.createTreeView('CCoding.functionList', {
+    vscode.window.createTreeView('CCoding.functionList', {
       treeDataProvider: functionListProvider,
       showCollapseAll: true,
     })
@@ -104,17 +103,8 @@ export function activate(context: vscode.ExtensionContext) {
         timelineProvider.showTimeline()
       }),
 
-      vscode.commands.registerCommand('CCoding.searchKeywords', () => {
-        keywordSearchProvider.searchKeywords()
-      }),
-
       vscode.commands.registerCommand('CCoding.clearSearch', () => {
         clearSearch(tabSwitcherProvider, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider)
-      }),
-
-      vscode.commands.registerCommand('CCoding.testSearch', () => {
-        // 测试搜索功能，确保没有弹窗
-        performSearch('current', 'all', functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider, keywordSearchProvider, 'test')
       }),
 
       vscode.commands.registerCommand('CCoding.addBookmarkFromContext', (uri: vscode.Uri) => {
@@ -239,10 +229,14 @@ async function showQuickJumpPicker() {
 /**
  * 切换选项卡
  * @param tab - 目标选项卡类型
- * @param providers - 所有相关的provider实例
+ * @param tabSwitcherProvider - tab切换器provider
+ * @param functionListProvider - 函数列表provider
+ * @param bookmarkProvider - 书签provider
+ * @param todoProvider - 待办provider
+ * @param pinnedSymbolProvider - 置顶符号provider
  */
 function switchTab(
-  tab: 'current' | 'all',
+  tab: 'current' | 'all' | 'symbols',
   tabSwitcherProvider: TabSwitcherProvider,
   functionListProvider: FunctionListProvider,
   bookmarkProvider: BookmarkProvider,
@@ -251,20 +245,27 @@ function switchTab(
 ) {
   currentTab = tab
   vscode.commands.executeCommand('setContext', 'CCoding.currentTab', currentTab)
+  vscode.commands.executeCommand('setContext', 'CCoding.isSymbolsTab', tab === 'symbols')
 
   // 更新WebView的选项卡状态
   tabSwitcherProvider.updateCurrentTab(tab)
 
-  // 更新所有Provider的当前Tab状态
-  todoProvider.setCurrentTab(tab)
-  bookmarkProvider.setCurrentTab(tab)
-  pinnedSymbolProvider.setCurrentTab(tab)
+  // 只有在非symbols tab时才更新其他Provider
+  if (tab !== 'symbols') {
+    todoProvider.setCurrentTab(tab)
+    bookmarkProvider.setCurrentTab(tab)
+    pinnedSymbolProvider.setCurrentTab(tab)
+  }
 
-  // 刷新所有相关的provider以更新显示内容
+  // 符号provider始终显示当前文件内容，不需要tab切换
+
+  // 刷新相关的provider以更新显示内容
   functionListProvider.refresh()
-  bookmarkProvider.refresh()
-  todoProvider.refresh()
-  pinnedSymbolProvider.refresh()
+  if (tab !== 'symbols') {
+    bookmarkProvider.refresh()
+    todoProvider.refresh()
+    pinnedSymbolProvider.refresh()
+  }
 
   // 静默切换，无需提示消息
 }
@@ -277,17 +278,15 @@ function switchTab(
  * @param bookmarkProvider - 书签provider
  * @param todoProvider - 待办provider
  * @param pinnedSymbolProvider - 置顶符号provider
- * @param keywordSearchProvider - 关键字搜索provider
  * @param query - 搜索查询（可选，如果没有提供会弹出输入框）
  */
 async function performSearch(
-  scope: 'current' | 'all',
+  scope: 'current' | 'all' | 'symbols',
   searchType: string,
   functionListProvider: FunctionListProvider,
   bookmarkProvider: BookmarkProvider,
   todoProvider: TodoProvider,
   pinnedSymbolProvider: PinnedSymbolProvider,
-  keywordSearchProvider: KeywordSearchProvider,
   query?: string,
 ) {
   // 如果query是undefined（从WebView来的搜索都会提供query，即使是空字符串）
@@ -304,29 +303,31 @@ async function performSearch(
 
     // 根据搜索类型执行相应的搜索操作
     try {
-      switch (searchType) {
-        case 'bookmarks':
-          await bookmarkProvider.searchBookmarks(searchQuery, scope)
-          break
-        case 'todos':
-          await todoProvider.searchTodos(searchQuery, scope)
-          break
-        case 'pinnedSymbols':
-          await pinnedSymbolProvider.searchPinnedSymbols(searchQuery, scope)
-          break
-        case 'functions':
-          await functionListProvider.searchFunctions(searchQuery, scope)
-          break
-        case 'all':
-        default:
-          // 对于全部内容搜索，搜索所有类型的内容
-          await Promise.all([
-            bookmarkProvider.searchBookmarks(searchQuery, scope),
-            todoProvider.searchTodos(searchQuery, scope),
-            pinnedSymbolProvider.searchPinnedSymbols(searchQuery, scope),
-            functionListProvider.searchFunctions(searchQuery, scope),
-          ])
-          break
+      if (scope === 'symbols') {
+        // 在symbols tab时，只搜索符号
+        await functionListProvider.searchFunctions(searchQuery)
+      }
+      else {
+        switch (searchType) {
+          case 'bookmarks':
+            await bookmarkProvider.searchBookmarks(searchQuery, scope)
+            break
+          case 'todos':
+            await todoProvider.searchTodos(searchQuery, scope)
+            break
+          case 'pinnedSymbols':
+            await pinnedSymbolProvider.searchPinnedSymbols(searchQuery, scope)
+            break
+          case 'all':
+          default:
+            // 对于全部内容搜索，搜索所有类型的内容（除了符号，符号有自己的tab）
+            await Promise.all([
+              bookmarkProvider.searchBookmarks(searchQuery, scope),
+              todoProvider.searchTodos(searchQuery, scope),
+              pinnedSymbolProvider.searchPinnedSymbols(searchQuery, scope),
+            ])
+            break
+        }
       }
     }
     catch (error) {
@@ -339,66 +340,23 @@ async function performSearch(
     hasActiveSearch = false
     vscode.commands.executeCommand('setContext', 'CCoding.hasActiveSearch', hasActiveSearch)
 
-    // 清除所有provider的搜索状态
+    // 清除相关provider的搜索状态
     functionListProvider.clearSearch()
-    bookmarkProvider.clearSearch()
-    todoProvider.clearSearch()
-    pinnedSymbolProvider.clearSearch()
-  }
-}
-
-/**
- * 在当前文件中搜索
- * @param query - 搜索查询
- */
-async function _searchInCurrentFile(query: string) {
-  const editor = vscode.window.activeTextEditor
-  if (!editor) {
-    vscode.window.showWarningMessage('请先打开一个文件')
-    return
-  }
-
-  const document = editor.document
-  const text = document.getText()
-  const results: { line: number, text: string }[] = []
-
-  const lines = text.split('\n')
-  lines.forEach((line, index) => {
-    if (line.toLowerCase().includes(query.toLowerCase())) {
-      results.push({
-        line: index + 1,
-        text: line.trim(),
-      })
+    if (currentTab !== 'symbols') {
+      bookmarkProvider.clearSearch()
+      todoProvider.clearSearch()
+      pinnedSymbolProvider.clearSearch()
     }
-  })
-
-  if (results.length === 0) {
-    vscode.window.showInformationMessage(`在当前文件中未找到 "${query}"`)
-    return
-  }
-
-  // 显示搜索结果选择器
-  const items = results.map(result => ({
-    label: `第 ${result.line} 行`,
-    description: result.text,
-    detail: result.line.toString(),
-    line: result.line - 1,
-  }))
-
-  const selected = await vscode.window.showQuickPick(items, {
-    placeHolder: `找到 ${results.length} 个结果`,
-  })
-
-  if (selected) {
-    const position = new vscode.Position(selected.line, 0)
-    editor.selection = new vscode.Selection(position, position)
-    editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter)
   }
 }
 
 /**
  * 清除搜索
- * @param providers - 所有相关的provider实例
+ * @param tabSwitcherProvider - tab切换器provider
+ * @param functionListProvider - 函数列表provider
+ * @param bookmarkProvider - 书签provider
+ * @param todoProvider - 待办provider
+ * @param pinnedSymbolProvider - 置顶符号provider
  */
 function clearSearch(
   tabSwitcherProvider: TabSwitcherProvider,
@@ -414,11 +372,13 @@ function clearSearch(
   // 清除WebView中的搜索框
   tabSwitcherProvider.clearSearch()
 
-  // 刷新所有provider以清除搜索过滤
+  // 刷新相关provider以清除搜索过滤
   functionListProvider.refresh()
-  bookmarkProvider.refresh()
-  todoProvider.refresh()
-  pinnedSymbolProvider.refresh()
+  if (currentTab !== 'symbols') {
+    bookmarkProvider.refresh()
+    todoProvider.refresh()
+    pinnedSymbolProvider.refresh()
+  }
 }
 
 export function deactivate() {
