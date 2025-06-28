@@ -34,6 +34,17 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
    */
   setCurrentTab(tab: 'current' | 'all'): void {
     if (this.currentTab !== tab) {
+      console.log(`[CCoding] TODO切换模式: ${this.currentTab} -> ${tab}`)
+      
+      // 中断当前扫描
+      if (this.isScanning) {
+        console.log('[CCoding] 中断当前TODO扫描，切换模式')
+        this.isScanning = false
+        if (this.scanTimeout) {
+          clearTimeout(this.scanTimeout)
+        }
+      }
+      
       this.currentTab = tab
       this._onDidChangeTreeData.fire()
     }
@@ -46,6 +57,7 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
   refresh(): void {
     // 如果正在扫描中，则跳过
     if (this.isScanning) {
+      console.log('[CCoding] TODO扫描已在进行中，跳过此次刷新')
       return
     }
 
@@ -54,10 +66,10 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
       clearTimeout(this.scanTimeout)
     }
 
-    // 减少防抖延时到100ms
+    // 增加防抖延时到500ms，减少CPU占用
     this.scanTimeout = setTimeout(() => {
       this.scanForTodos()
-    }, 100)
+    }, 500)
   }
 
   /**
@@ -181,9 +193,11 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
 
   private async scanForTodos() {
     if (this.isScanning) {
+      console.log('[CCoding] TODO扫描已在进行中，跳过')
       return
     }
 
+    console.log('[CCoding] 开始TODO扫描...')
     this.isScanning = true
     this.todos = []
     const workspaceFolders = vscode.workspace.workspaceFolders
@@ -194,16 +208,32 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
     }
 
     try {
-      for (const folder of workspaceFolders) {
-        await this.scanFolder(folder.uri)
+      // 限制扫描范围，只在当前tab为'all'时扫描所有文件
+      if (this.currentTab === 'all') {
+        for (const folder of workspaceFolders) {
+          await this.scanFolder(folder.uri)
+          // 添加中断检查，避免长时间阻塞
+          if (!this.isScanning) {
+            console.log('[CCoding] TODO扫描被中断')
+            return
+          }
+        }
+      } else {
+        // 当前文件模式，只扫描当前文件
+        this.scanCurrentDocument()
       }
 
       vscode.commands.executeCommand('setContext', 'CCoding.hasTodos', this.todos.length > 0)
       this._onDidChangeTreeData.fire()
       this.updateDecorations()
+      console.log(`[CCoding] TODO扫描完成，找到 ${this.todos.length} 个待办项`)
     }
     catch (error) {
-      console.error('Error scanning for todos:', error)
+      console.error('[CCoding] TODO扫描错误:', error)
+      // 出错时重置状态
+      this.isScanning = false
+      this.todos = []
+      this._onDidChangeTreeData.fire()
     }
     finally {
       this.isScanning = false
@@ -211,12 +241,36 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
   }
 
   private async scanFolder(folderUri: vscode.Uri) {
-    // 支持所有常见文本文件类型
-    const pattern = new vscode.RelativePattern(folderUri, '**/*.{js,ts,jsx,tsx,vue,py,java,c,cpp,cs,php,rb,go,rs,swift,html,htm,css,scss,sass,less,md,markdown,txt,json,xml,yaml,yml,sh,bat,ps1,sql,r,m,scala,kotlin,dart,lua,perl,pl,ini,cfg,conf,log,tex,jsx,tsx}')
-    const files = await vscode.workspace.findFiles(pattern, '**/node_modules/**')
+    try {
+      // 只扫描前端开发相关的主要文件类型，减少扫描范围
+      const pattern = new vscode.RelativePattern(folderUri, '**/*.{js,ts,jsx,tsx,vue,html,css,scss,md}')
+      const files = await vscode.workspace.findFiles(
+        pattern, 
+        '**/node_modules/**', 
+        1000 // 限制最大文件数量，防止扫描过多文件
+      )
 
-    for (const file of files) {
-      await this.scanFile(file)
+      console.log(`[CCoding] TODO扫描：找到 ${files.length} 个文件`)
+      
+      // 分批处理文件，避免一次性处理过多
+      const batchSize = 50
+      for (let i = 0; i < files.length; i += batchSize) {
+        if (!this.isScanning) {
+          console.log('[CCoding] TODO扫描被中断（文件夹扫描）')
+          break
+        }
+        
+        const batch = files.slice(i, i + batchSize)
+        for (const file of batch) {
+          if (!this.isScanning) break
+          await this.scanFile(file)
+        }
+        
+        // 每批处理后稍作延迟，让出CPU时间
+        await new Promise(resolve => setTimeout(resolve, 10))
+      }
+    } catch (error) {
+      console.error('[CCoding] TODO文件夹扫描错误:', error)
     }
   }
 
@@ -429,10 +483,24 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
   }
 
   dispose(): void {
+    console.log('[CCoding] 清理TODO Provider资源')
+    
+    // 停止扫描
+    this.isScanning = false
+    if (this.scanTimeout) {
+      clearTimeout(this.scanTimeout)
+      this.scanTimeout = undefined
+    }
+    
+    // 清理装饰器
     this.decorationTypes.forEach((decorationType) => {
       decorationType.dispose()
     })
     this.decorationTypes.clear()
+    
+    // 清理数据
+    this.todos = []
+    this.currentDocumentTodos.clear()
   }
 
   /**

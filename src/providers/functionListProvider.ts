@@ -55,22 +55,58 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    * 销毁提供器，清理所有资源
    */
   dispose(): void {
+    console.log('[CCoding] 清理Function Provider资源')
+    
+    // 停止刷新
+    this.isRefreshing = false
+    if (this.refreshTimeout) {
+      clearTimeout(this.refreshTimeout)
+      this.refreshTimeout = undefined
+    }
+    
     this.clearAllState()
   }
 
+  private isRefreshing: boolean = false
+  private refreshTimeout: NodeJS.Timeout | undefined
+
   refresh(): void {
-    this.parseFunctions()
-      .then(() => {
-        // 确保状态同步
-        this.validateState()
-        this._onDidChangeTreeData.fire()
-      })
-      .catch((error) => {
-        console.error('CCoding: Error parsing functions:', error)
-        // 出错时清理状态，防止显示不一致的数据
-        this.clearAllState()
-        this._onDidChangeTreeData.fire()
-      })
+    // 防止并发刷新
+    if (this.isRefreshing) {
+      console.log('[CCoding] Function解析已在进行中，跳过此次刷新')
+      return
+    }
+
+    // 清除之前的延时器
+    if (this.refreshTimeout) {
+      clearTimeout(this.refreshTimeout)
+    }
+
+    // 防抖处理
+    this.refreshTimeout = setTimeout(() => {
+      this.performRefresh()
+    }, 300)
+  }
+
+  private async performRefresh(): Promise<void> {
+    if (this.isRefreshing) return
+    
+    this.isRefreshing = true
+    try {
+      console.log('[CCoding] 开始Function解析...')
+      await this.parseFunctions()
+      // 确保状态同步
+      this.validateState()
+      this._onDidChangeTreeData.fire()
+      console.log('[CCoding] Function解析完成')
+    } catch (error) {
+      console.error('[CCoding] Function解析错误:', error)
+      // 出错时清理状态，防止显示不一致的数据
+      this.clearAllState()
+      this._onDidChangeTreeData.fire()
+    } finally {
+      this.isRefreshing = false
+    }
   }
 
   /**
@@ -641,6 +677,13 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    */
   private async extractAdditionalSymbols(document: vscode.TextDocument) {
     const content = document.getText()
+    
+    // 限制处理的文档大小，避免处理过大文件
+    if (content.length > 500000) { // 500KB 限制
+      console.log(`[CCoding] 文件过大 (${content.length} 字符)，跳过额外符号解析`)
+      return
+    }
+    
     const lines = content.split('\n')
     const isVueFile = document.fileName.toLowerCase().endsWith('.vue')
 
@@ -684,8 +727,12 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       console.log(`[CCoding] 🎯 尝试模式 ${patternIndex}: ${pattern.source}`)
 
       let matchCount = 0
+      let iterationCount = 0
+      const maxIterations = 1000 // 防止无限循环
+      
       match = pattern.exec(content)
-      while (match !== null) {
+      while (match !== null && iterationCount < maxIterations) {
+        iterationCount++
         matchCount++
         const fullMatch = match[0]
         // 根据模式确定函数名的位置
@@ -767,6 +814,12 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         }
 
         match = pattern.exec(content)
+        
+        // 防止无限循环的额外保护
+        if (iterationCount >= maxIterations) {
+          console.warn(`[CCoding] 模式${patternIndex}匹配次数超限，停止处理`)
+          break
+        }
       }
 
       console.log(`[CCoding] 📊 模式${patternIndex}总匹配数: ${matchCount}`)
@@ -984,18 +1037,18 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    * 带冲突检查的DOM元素提取
    */
   private async extractDOMElementsWithConflictCheck(document: vscode.TextDocument) {
-    const beforeCount = this.functions.length
-    await this.extractDOMElements(document)
-    console.log(`[CCoding] DOM解析: 新增 ${this.functions.length - beforeCount} 个元素`)
+    // 跳过DOM解析，减少性能开销
+    console.log(`[CCoding] 跳过DOM解析（性能优化）`)
+    return
   }
 
   /**
    * 带冲突检查的CSS规则提取
    */
   private async extractCSSRulesWithConflictCheck(document: vscode.TextDocument) {
-    const beforeCount = this.functions.length
-    await this.extractCSSRules(document)
-    console.log(`[CCoding] CSS解析: 新增 ${this.functions.length - beforeCount} 个规则`)
+    // 跳过CSS解析，减少性能开销  
+    console.log(`[CCoding] 跳过CSS解析（性能优化）`)
+    return
   }
 
   /**

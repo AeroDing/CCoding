@@ -10,6 +10,7 @@ import { TodoProvider } from './providers/todoProvider'
 let currentTab: 'current' | 'all' | 'symbols' = 'symbols'
 let hasActiveSearch = false
 let searchQuery = ''
+let documentChangeTimeout: NodeJS.Timeout | undefined
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('CCoding is now active!')
@@ -159,6 +160,7 @@ export function activate(context: vscode.ExtensionContext) {
       }),
 
       vscode.window.onDidChangeActiveTextEditor(() => {
+        console.log('[CCoding] 编辑器切换，刷新providers')
         functionListProvider.refresh()
         // 如果当前是"当前文件"模式，切换文件时需要更新所有provider的显示
         if (currentTab === 'current') {
@@ -168,10 +170,24 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }),
 
-      vscode.workspace.onDidChangeTextDocument((_event) => {
-        functionListProvider.refresh()
-        // 实时扫描当前文档的TODO变更
-        todoProvider.scanCurrentDocument()
+      // 使用防抖处理文档变更事件，避免频繁触发
+      vscode.workspace.onDidChangeTextDocument((event) => {
+        // 只在用户主动编辑时刷新，忽略程序化变更
+        if (event.reason === vscode.TextDocumentChangeReason.Undo || 
+            event.reason === vscode.TextDocumentChangeReason.Redo) {
+          return
+        }
+        
+        // 防抖处理
+        if (documentChangeTimeout) {
+          clearTimeout(documentChangeTimeout)
+        }
+        documentChangeTimeout = setTimeout(() => {
+          console.log('[CCoding] 文档变更，刷新providers')
+          functionListProvider.refresh()
+          // 实时扫描当前文档的TODO变更
+          todoProvider.scanCurrentDocument()
+        }, 1000) // 1秒防抖
       }),
 
       vscode.workspace.onDidSaveTextDocument(() => {
@@ -295,6 +311,7 @@ async function performSearch(
   }
 
   const searchInput = query.trim()
+  console.log(`[CCoding] 开始搜索: "${searchInput}", 范围: ${scope}, 类型: ${searchType}`)
 
   if (searchInput) {
     searchQuery = searchInput
@@ -305,37 +322,43 @@ async function performSearch(
     try {
       if (scope === 'symbols') {
         // 在symbols tab时，只搜索符号
+        console.log('[CCoding] 搜索符号...')
         await functionListProvider.searchFunctions(searchQuery)
       }
       else {
         switch (searchType) {
           case 'bookmarks':
+            console.log('[CCoding] 搜索书签...')
             await bookmarkProvider.searchBookmarks(searchQuery, scope)
             break
           case 'todos':
+            console.log('[CCoding] 搜索待办事项...')
             await todoProvider.searchTodos(searchQuery, scope)
             break
           case 'pinnedSymbols':
+            console.log('[CCoding] 搜索置顶符号...')
             await pinnedSymbolProvider.searchPinnedSymbols(searchQuery, scope)
             break
           case 'all':
           default:
-            // 对于全部内容搜索，搜索所有类型的内容（除了符号，符号有自己的tab）
-            await Promise.all([
-              bookmarkProvider.searchBookmarks(searchQuery, scope),
-              todoProvider.searchTodos(searchQuery, scope),
-              pinnedSymbolProvider.searchPinnedSymbols(searchQuery, scope),
-            ])
+            console.log('[CCoding] 搜索所有内容...')
+            // 避免并发搜索，改为串行处理，减少系统压力
+            await bookmarkProvider.searchBookmarks(searchQuery, scope)
+            await todoProvider.searchTodos(searchQuery, scope)
+            await pinnedSymbolProvider.searchPinnedSymbols(searchQuery, scope)
             break
         }
       }
+      console.log('[CCoding] 搜索完成')
     }
     catch (error) {
+      console.error('[CCoding] 搜索错误:', error)
       vscode.window.showErrorMessage(`搜索时发生错误: ${error}`)
     }
   }
   else {
     // 如果搜索内容为空，清除搜索状态
+    console.log('[CCoding] 清除搜索状态')
     searchQuery = ''
     hasActiveSearch = false
     vscode.commands.executeCommand('setContext', 'CCoding.hasActiveSearch', hasActiveSearch)
@@ -382,13 +405,19 @@ function clearSearch(
 }
 
 export function deactivate() {
-  console.log('CCoding is being deactivated, saving data...')
+  console.log('[CCoding] 插件正在停用，清理资源...')
+
+  // 清理定时器
+  if (documentChangeTimeout) {
+    clearTimeout(documentChangeTimeout)
+    documentChangeTimeout = undefined
+  }
 
   // 这里无法直接访问provider实例，但可以通过globalState确保数据一致性
   // 实际的数据保存已经在各个操作中进行了
 
   // 清理资源
-  console.log('CCoding deactivated successfully')
+  console.log('[CCoding] 插件停用完成')
 }
 
 /**
