@@ -27,11 +27,8 @@ jobs:
       - name: Compile TypeScript
         run: npm run compile
 
-      - name: Install vsce globally
-        run: npm install -g @vscode/vsce
-
       - name: Package extension
-        run: vsce package --out CCoding-${{ github.ref_name }}.vsix
+        run: npx vsce package --out CCoding-${{ github.ref_name }}.vsix
 
       - name: Generate SHA256 checksum
         run: |
