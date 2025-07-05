@@ -13,13 +13,15 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
   readonly onDidChangeTreeData: vscode.Event<TodoTreeItem | undefined | null | void> = this._onDidChangeTreeData.event
 
   private todos: TodoItem[] = []
-  private todoRegex = /(TODO|FIXME|NOTE|HACK|BUG)(?:\(([^)]+)\))?:?\s*(.+)/gi
+  private todoRegex = /^\s*(?:\/\/|\/\*|\*|<!--|#)\s*(TODO|FIXME|NOTE|HACK|BUG)(?:\(([^)]+)\))?:?\s*(.+)/gi
   private decorationTypes: Map<string, vscode.TextEditorDecorationType> = new Map()
   private isScanning: boolean = false
   private scanTimeout: NodeJS.Timeout | undefined
   private currentTab: 'current' | 'all' = 'current'
   private currentDocumentTodos: Map<string, TodoItem[]> = new Map()
   private lastScanTime: number = 0
+  private searchQuery: string = ''
+  private searchScope: 'current' | 'all' = 'current'
 
   constructor() {
     this.initDecorationTypes()
@@ -100,7 +102,7 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
     const currentDocTodos: TodoItem[] = []
 
     lines.forEach((line, index) => {
-      const regex = /(TODO|FIXME|NOTE|HACK|BUG)(?:\(([^)]+)\))?:?\s*(.+)/gi
+      const regex = /^\s*(?:\/\/|\/\*|\*|<!--|#)\s*(TODO|FIXME|NOTE|HACK|BUG)(?:\(([^)]+)\))?:?\s*(.+)/gi
       let match
 
       match = regex.exec(line)
@@ -284,7 +286,7 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
       const lines = content.split('\n')
 
       lines.forEach((line, index) => {
-        const regex = /(TODO|FIXME|NOTE|HACK|BUG)(?:\(([^)]+)\))?:?\s*(.+)/gi
+        const regex = /^\s*(?:\/\/|\/\*|\*|<!--|#)\s*(TODO|FIXME|NOTE|HACK|BUG)(?:\(([^)]+)\))?:?\s*(.+)/gi
         let match
 
         match = regex.exec(line)
@@ -505,12 +507,6 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
     this.todos = []
     this.currentDocumentTodos.clear()
   }
-
-  /**
-   * 当前搜索状态
-   */
-  private searchQuery: string = ''
-  private searchScope: 'current' | 'all' = 'current'
 
   /**
    * 搜索待办事项
