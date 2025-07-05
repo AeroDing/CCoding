@@ -21,6 +21,7 @@ export default antfu(
   },
   {
     ignores: [
+      '.claude/**',
       'out/**',
       'node_modules/**',
       '**/*.vsix',
