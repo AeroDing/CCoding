@@ -2,3 +2,7 @@ node_modules
 out
 *.vsix
 *.vsix.sha256
+
+
+.idea
+.DS_Store
