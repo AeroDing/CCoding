@@ -22,11 +22,34 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
   private lastScanTime: number = 0
   private searchQuery: string = ''
   private searchScope: 'current' | 'all' = 'current'
+  private _disposables: vscode.Disposable[] = []
 
   constructor() {
     this.initDecorationTypes()
-    this.refresh()
+    // 移除构造函数中的 refresh() 调用，改为延迟初始化
     this.setupEventListeners()
+  }
+
+  /**
+   * 初始化装饰器和首次扫描
+   * @description 由extension.ts调用，确保VSCode完全加载后再初始化
+   */
+  initializeDecorations(): void {
+    console.log('[CCoding] 开始初始化TODO装饰器和扫描')
+
+    // 确保有活动编辑器时才进行初始化
+    const editor = vscode.window.activeTextEditor
+    if (editor) {
+      this.scanCurrentDocument()
+      this.updateDecorations()
+      // 执行一次完整刷新以确保所有TODO被发现
+      this.forceRefresh()
+    }
+    else {
+      console.log('[CCoding] 无活动编辑器，仅执行工作区扫描')
+      // 没有活动编辑器时扫描整个工作区
+      this.forceRefresh()
+    }
   }
 
   /**
@@ -432,11 +455,23 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
   }
 
   private setupEventListeners(): void {
-    vscode.window.onDidChangeActiveTextEditor(() => {
-      this.updateDecorations()
-      // 切换文件时立即扫描新文件的TODO
-      this.scanCurrentDocument()
+    // 监听编辑器切换事件
+    const editorChangeDisposable = vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (editor) {
+        console.log('[CCoding] 编辑器切换，更新TODO装饰器')
+        this.updateDecorations()
+        this.scanCurrentDocument()
+      }
     })
+
+    // 监听工作区打开事件，确保插件激活后能正确初始化
+    const workspaceChangeDisposable = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      console.log('[CCoding] 工作区变更，重新扫描TODO')
+      this.forceRefresh()
+    })
+
+    // 确保在dispose时清理事件监听器
+    this._disposables = [editorChangeDisposable, workspaceChangeDisposable]
   }
 
   private updateDecorations(): void {
@@ -502,6 +537,13 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
       decorationType.dispose()
     })
     this.decorationTypes.clear()
+
+    // 清理事件监听器
+    this._disposables.forEach(disposable => disposable.dispose())
+    this._disposables = []
+
+    // 清理EventEmitter
+    this._onDidChangeTreeData.dispose()
 
     // 清理数据
     this.todos = []

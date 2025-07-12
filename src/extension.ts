@@ -29,6 +29,28 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Provider初始化完成
 
+    // 使用更安全的初始化方式
+    const initializeTodoDecorations = () => {
+      console.log('[CCoding] 初始化TODO装饰器')
+      todoProvider.initializeDecorations()
+    }
+
+    // 立即检查是否已有活动编辑器
+    if (vscode.window.activeTextEditor) {
+      // 使用 nextTick 确保在下一个事件循环中执行
+      process.nextTick(initializeTodoDecorations)
+    }
+    else {
+      // 如果没有活动编辑器，监听第一次编辑器打开事件
+      const disposableInit = vscode.window.onDidChangeActiveTextEditor((editor) => {
+        if (editor) {
+          initializeTodoDecorations()
+          disposableInit.dispose()
+        }
+      })
+      context.subscriptions.push(disposableInit)
+    }
+
     // 创建tab切换器webview
     const tabSwitcherProvider = new TabSwitcherProvider(
       context.extensionUri,
