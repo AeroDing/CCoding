@@ -27,9 +27,7 @@
     "vscode": "^1.74.0"
   },
   "activationEvents": [
-    "onCommand:CCoding.showFunctionList",
-    "onCommand:CCoding.addBookmark",
-    "onCommand:CCoding.quickJump"
+    "onStartupFinished"
   ],
   "contributes": {
     "commands": [
@@ -113,6 +111,12 @@
         "command": "CCoding.repairData",
         "title": "修复数据",
         "category": "CCoding"
+      },
+      {
+        "command": "CCoding.refreshUnifiedView",
+        "title": "刷新列表",
+        "category": "CCoding",
+        "icon": "$(refresh)"
       }
     ],
     "keybindings": [
@@ -135,34 +139,10 @@
     "views": {
       "CCoding": [
         {
-          "id": "CCoding.tabSwitcher",
-          "name": "控制面板",
+          "id": "CCoding.unifiedView",
+          "name": "代码导航",
           "type": "webview",
-          "initialSize": 150,
-          "when": "true"
-        },
-        {
-          "id": "CCoding.functionList",
-          "name": "符号列表",
-          "when": "CCoding.currentTab == 'symbols' && (resourceExtname == .js || resourceExtname == .ts || resourceExtname == .vue || resourceExtname == .jsx || resourceExtname == .tsx || resourceExtname == .html || resourceExtname == .css || resourceExtname == .scss || resourceExtname == .less)",
-          "visibility": "visible"
-        },
-        {
-          "id": "CCoding.bookmarks",
-          "name": "书签",
-          "when": "CCoding.currentTab == 'current' || CCoding.currentTab == 'all'",
-          "visibility": "visible"
-        },
-        {
-          "id": "CCoding.todos",
-          "name": "待办事项",
-          "when": "CCoding.currentTab == 'current' || CCoding.currentTab == 'all'",
-          "visibility": "visible"
-        },
-        {
-          "id": "CCoding.pinnedSymbols",
-          "name": "置顶符号",
-          "when": "CCoding.currentTab == 'current' || CCoding.currentTab == 'all'",
+          "when": "true",
           "visibility": "visible"
         }
       ]
@@ -203,24 +183,19 @@
       "view/item/context": [
         {
           "command": "CCoding.editBookmark",
-          "when": "view == CCoding.bookmarks && viewItem == bookmark",
-          "group": "inline"
+          "when": "view == CCoding.unifiedView && (viewItem == bookmark || viewItem == bookmark-pinned)",
+          "group": "inline@1"
         },
         {
           "command": "CCoding.removeBookmark",
-          "when": "view == CCoding.bookmarks && viewItem == bookmark",
-          "group": "inline"
-        },
-        {
-          "command": "CCoding.unpinSymbol",
-          "when": "view == CCoding.pinnedSymbols && viewItem == pinnedSymbol",
-          "group": "inline"
+          "when": "view == CCoding.unifiedView && (viewItem == bookmark || viewItem == bookmark-pinned)",
+          "group": "inline@2"
         }
       ],
       "view/title": [
         {
-          "command": "CCoding.clearAllPinnedSymbols",
-          "when": "view == CCoding.pinnedSymbols && CCoding.hasPinnedSymbols",
+          "command": "CCoding.refreshUnifiedView",
+          "when": "view == CCoding.unifiedView",
           "group": "navigation"
         }
       ]

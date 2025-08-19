@@ -1,103 +1,144 @@
 import * as vscode from 'vscode'
 import { BookmarkProvider } from './providers/bookmarkProvider'
+import { DataAdapter } from './providers/dataAdapter'
 import { FunctionListProvider } from './providers/functionListProvider'
 import { PinnedSymbolProvider } from './providers/pinnedSymbolProvider'
-import { TabSwitcherProvider } from './providers/tabSwitcherProvider'
 import { TimelineProvider } from './providers/timelineProvider'
 import { TodoProvider } from './providers/todoProvider'
+import { UnifiedWebViewProvider } from './providers/unifiedWebViewProvider'
 
 // 全局状态管理
-let currentTab: 'current' | 'all' | 'symbols' = 'symbols'
-let hasActiveSearch = false
-let searchQuery = ''
 let documentChangeTimeout: NodeJS.Timeout | undefined
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('CCoding is now active!')
 
   try {
-    // 设置初始上下文
-    vscode.commands.executeCommand('setContext', 'CCoding.currentTab', currentTab)
-    vscode.commands.executeCommand('setContext', 'CCoding.hasActiveSearch', hasActiveSearch)
-    vscode.commands.executeCommand('setContext', 'CCoding.isSymbolsTab', true)
-
+    // 创建传统Provider实例（保持向后兼容）
     const functionListProvider = new FunctionListProvider()
     const bookmarkProvider = new BookmarkProvider(context)
     const todoProvider = new TodoProvider()
     const pinnedSymbolProvider = new PinnedSymbolProvider(context)
     const timelineProvider = new TimelineProvider()
 
-    // Provider初始化完成
+    // 创建数据适配器
+    const dataAdapter = new DataAdapter(
+      functionListProvider,
+      bookmarkProvider,
+      todoProvider,
+      pinnedSymbolProvider,
+    )
 
-    // 使用更安全的初始化方式
+    // 创建统一WebView Provider和数据刷新函数
+    let unifiedWebViewProvider: UnifiedWebViewProvider
+
+    async function refreshAllData() {
+      try {
+        console.log('[CCoding] 开始刷新所有数据...')
+        const data = await dataAdapter.refreshAllData()
+
+        // 合并所有数据
+        const allItems = [
+          ...data.symbols,
+          ...data.bookmarks,
+          ...data.todos,
+          ...data.pinned,
+        ]
+
+        // 计算统计信息
+        const stats = {
+          total: allItems.length,
+          symbols: data.symbols.length,
+          bookmarks: data.bookmarks.length,
+          todos: data.todos.length,
+          pinned: data.pinned.length,
+        }
+
+        console.log('[CCoding] 更新统一WebView数据:', stats)
+        if (unifiedWebViewProvider) {
+          unifiedWebViewProvider.updateData(allItems, stats)
+        }
+
+        console.log('[CCoding] 数据刷新完成')
+      }
+      catch (error) {
+        console.error('[CCoding] 数据刷新失败:', error)
+        vscode.window.showErrorMessage(`CCoding数据刷新失败: ${error}`)
+      }
+    }
+
+    unifiedWebViewProvider = new UnifiedWebViewProvider(
+      context.extensionUri,
+      (filter) => {
+        console.log(`[CCoding] 筛选器改变: ${filter}`)
+        // 在WebView内部处理筛选，这里只是日志
+      },
+      (query) => {
+        console.log(`[CCoding] 搜索查询: ${query}`)
+        // 在WebView内部处理搜索，这里只是日志
+      },
+      (item) => {
+        // 处理项目点击 - 跳转到位置
+        vscode.window.showTextDocument(item.uri, {
+          selection: new vscode.Range(item.range.start, item.range.start),
+        })
+      },
+      (item) => {
+        // 处理置顶切换
+        console.log(`[CCoding] 切换置顶状态: ${item.label}`)
+        // TODO: 实现置顶逻辑
+      },
+      () => {
+        // 处理数据请求
+        console.log('[CCoding] WebView请求数据刷新')
+        refreshAllData()
+      },
+    )
+
+    // TODO装饰器初始化（延迟执行）
     const initializeTodoDecorations = () => {
       console.log('[CCoding] 初始化TODO装饰器')
       todoProvider.initializeDecorations()
     }
 
-    // 立即检查是否已有活动编辑器
     if (vscode.window.activeTextEditor) {
-      // 使用 nextTick 确保在下一个事件循环中执行
-      process.nextTick(initializeTodoDecorations)
+      // 延迟初始化，确保编辑器完全加载
+      setTimeout(() => {
+        console.log('[CCoding] 延迟初始化开始...')
+        initializeTodoDecorations()
+        // 再次延迟以确保TODO装饰器完全初始化
+        setTimeout(refreshAllData, 500)
+      }, 1000)
     }
     else {
-      // 如果没有活动编辑器，监听第一次编辑器打开事件
+      console.log('[CCoding] 没有活动编辑器，等待编辑器激活...')
       const disposableInit = vscode.window.onDidChangeActiveTextEditor((editor) => {
         if (editor) {
+          console.log('[CCoding] 编辑器激活，开始初始化...')
           initializeTodoDecorations()
+          setTimeout(refreshAllData, 500)
           disposableInit.dispose()
         }
       })
       context.subscriptions.push(disposableInit)
     }
 
-    // 创建tab切换器webview
-    const tabSwitcherProvider = new TabSwitcherProvider(
-      context.extensionUri,
-      (tab: 'current' | 'all' | 'symbols') => {
-        switchTab(tab, tabSwitcherProvider, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider)
-      },
-      (query: string, scope: 'current' | 'all' | 'symbols', searchType: string) => {
-        performSearch(scope, searchType, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider, query)
-      },
-    )
-
-    // 注册webview provider
+    // 注册统一WebView
     context.subscriptions.push(
-      vscode.window.registerWebviewViewProvider(TabSwitcherProvider.viewType, tabSwitcherProvider),
+      vscode.window.registerWebviewViewProvider(
+        UnifiedWebViewProvider.viewType,
+        unifiedWebViewProvider,
+      ),
     )
 
-    vscode.window.createTreeView('CCoding.functionList', {
-      treeDataProvider: functionListProvider,
-      showCollapseAll: true,
-    })
-
-    // 延迟聚焦到控制面板，避免初始化冲突
+    // WebView注册后立即刷新数据
     setTimeout(() => {
-      try {
-        vscode.commands.executeCommand('CCoding.tabSwitcher.focus')
-      }
-      catch (error) {
-        console.warn('Failed to focus tab switcher:', error)
-      }
-    }, 1000) // 增加延迟时间到1000ms
-
-    vscode.window.createTreeView('CCoding.bookmarks', {
-      treeDataProvider: bookmarkProvider,
-      showCollapseAll: true,
-    })
-
-    vscode.window.createTreeView('CCoding.todos', {
-      treeDataProvider: todoProvider,
-      showCollapseAll: true,
-    })
-
-    vscode.window.createTreeView('CCoding.pinnedSymbols', {
-      treeDataProvider: pinnedSymbolProvider,
-      showCollapseAll: true,
-    })
+      console.log('[CCoding] WebView注册后刷新数据')
+      refreshAllData()
+    }, 100)
 
     const disposables = [
+      // 传统命令（保持兼容）
       vscode.commands.registerCommand('CCoding.showFunctionList', () => {
         functionListProvider.refresh()
       }),
@@ -126,10 +167,6 @@ export function activate(context: vscode.ExtensionContext) {
         timelineProvider.showTimeline()
       }),
 
-      vscode.commands.registerCommand('CCoding.clearSearch', () => {
-        clearSearch(tabSwitcherProvider, functionListProvider, bookmarkProvider, todoProvider, pinnedSymbolProvider)
-      }),
-
       vscode.commands.registerCommand('CCoding.addBookmarkFromContext', (uri: vscode.Uri) => {
         bookmarkProvider.addBookmarkFromContext(uri)
       }),
@@ -151,11 +188,28 @@ export function activate(context: vscode.ExtensionContext) {
       }),
 
       vscode.commands.registerCommand('CCoding.editBookmark', (item: any) => {
-        bookmarkProvider.editBookmark(item.bookmark.id)
+        const bookmarkId = item.bookmark?.id || (item.unifiedItem?.id.startsWith('bookmark-') ? item.unifiedItem.id.replace('bookmark-', '') : null)
+        if (bookmarkId) {
+          bookmarkProvider.editBookmark(bookmarkId)
+        }
       }),
 
       vscode.commands.registerCommand('CCoding.removeBookmark', (item: any) => {
-        bookmarkProvider.removeBookmark(item.bookmark.id)
+        const bookmarkId = item.bookmark?.id || (item.unifiedItem?.id.startsWith('bookmark-') ? item.unifiedItem.id.replace('bookmark-', '') : null)
+        if (bookmarkId) {
+          bookmarkProvider.removeBookmark(bookmarkId)
+        }
+      }),
+
+      // 统一视图命令
+      vscode.commands.registerCommand('CCoding.refreshUnifiedView', () => {
+        console.log('[CCoding] 手动刷新统一视图')
+        refreshAllData()
+      }),
+
+      vscode.commands.registerCommand('CCoding.clearSearch', () => {
+        // 清除WebView搜索
+        unifiedWebViewProvider.clearSearch()
       }),
 
       vscode.commands.registerCommand('CCoding.repairData', async () => {
@@ -181,39 +235,31 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }),
 
+      // 事件监听器
       vscode.window.onDidChangeActiveTextEditor(() => {
-        console.log('[CCoding] 编辑器切换，刷新providers')
-        functionListProvider.refresh()
-        // 如果当前是"当前文件"模式，切换文件时需要更新所有provider的显示
-        if (currentTab === 'current') {
-          todoProvider.refresh()
-          bookmarkProvider.refresh()
-          pinnedSymbolProvider.refresh()
-        }
+        console.log('[CCoding] 编辑器切换，刷新统一视图')
+        refreshAllData()
       }),
 
-      // 使用防抖处理文档变更事件，避免频繁触发
+      // 文档变更监听（防抖处理）
       vscode.workspace.onDidChangeTextDocument((event) => {
-        // 只在用户主动编辑时刷新，忽略程序化变更
         if (event.reason === vscode.TextDocumentChangeReason.Undo
           || event.reason === vscode.TextDocumentChangeReason.Redo) {
           return
         }
 
-        // 防抖处理
         if (documentChangeTimeout) {
           clearTimeout(documentChangeTimeout)
         }
         documentChangeTimeout = setTimeout(() => {
-          console.log('[CCoding] 文档变更，刷新providers')
-          functionListProvider.refresh()
-          // 实时扫描当前文档的TODO变更
-          todoProvider.scanCurrentDocument()
-        }, 1000) // 1秒防抖
+          console.log('[CCoding] 文档变更，刷新统一视图')
+          refreshAllData()
+        }, 1000)
       }),
 
       vscode.workspace.onDidSaveTextDocument(() => {
-        todoProvider.refresh()
+        console.log('[CCoding] 文档保存，刷新统一视图')
+        refreshAllData()
       }),
     ]
 
@@ -264,168 +310,6 @@ async function showQuickJumpPicker() {
   }
 }
 
-/**
- * 切换选项卡
- * @param tab - 目标选项卡类型
- * @param tabSwitcherProvider - tab切换器provider
- * @param functionListProvider - 函数列表provider
- * @param bookmarkProvider - 书签provider
- * @param todoProvider - 待办provider
- * @param pinnedSymbolProvider - 置顶符号provider
- */
-function switchTab(
-  tab: 'current' | 'all' | 'symbols',
-  tabSwitcherProvider: TabSwitcherProvider,
-  functionListProvider: FunctionListProvider,
-  bookmarkProvider: BookmarkProvider,
-  todoProvider: TodoProvider,
-  pinnedSymbolProvider: PinnedSymbolProvider,
-) {
-  currentTab = tab
-  vscode.commands.executeCommand('setContext', 'CCoding.currentTab', currentTab)
-  vscode.commands.executeCommand('setContext', 'CCoding.isSymbolsTab', tab === 'symbols')
-
-  // 更新WebView的选项卡状态
-  tabSwitcherProvider.updateCurrentTab(tab)
-
-  // 只有在非symbols tab时才更新其他Provider
-  if (tab !== 'symbols') {
-    todoProvider.setCurrentTab(tab)
-    bookmarkProvider.setCurrentTab(tab)
-    pinnedSymbolProvider.setCurrentTab(tab)
-  }
-
-  // 符号provider始终显示当前文件内容，不需要tab切换
-
-  // 刷新相关的provider以更新显示内容
-  functionListProvider.refresh()
-  if (tab !== 'symbols') {
-    bookmarkProvider.refresh()
-    todoProvider.refresh()
-    pinnedSymbolProvider.refresh()
-  }
-
-  // 静默切换，无需提示消息
-}
-
-/**
- * 执行搜索
- * @param scope - 搜索范围
- * @param searchType - 搜索类型
- * @param functionListProvider - 功能列表provider
- * @param bookmarkProvider - 书签provider
- * @param todoProvider - 待办provider
- * @param pinnedSymbolProvider - 置顶符号provider
- * @param query - 搜索查询（可选，如果没有提供会弹出输入框）
- */
-async function performSearch(
-  scope: 'current' | 'all' | 'symbols',
-  searchType: string,
-  functionListProvider: FunctionListProvider,
-  bookmarkProvider: BookmarkProvider,
-  todoProvider: TodoProvider,
-  pinnedSymbolProvider: PinnedSymbolProvider,
-  query?: string,
-) {
-  // 如果query是undefined（从WebView来的搜索都会提供query，即使是空字符串）
-  if (query === undefined) {
-    return
-  }
-
-  const searchInput = query.trim()
-  console.log(`[CCoding] 开始搜索: "${searchInput}", 范围: ${scope}, 类型: ${searchType}`)
-
-  if (searchInput) {
-    searchQuery = searchInput
-    hasActiveSearch = true
-    vscode.commands.executeCommand('setContext', 'CCoding.hasActiveSearch', hasActiveSearch)
-
-    // 根据搜索类型执行相应的搜索操作
-    try {
-      if (scope === 'symbols') {
-        // 在symbols tab时，只搜索符号
-        console.log('[CCoding] 搜索符号...')
-        await functionListProvider.searchFunctions(searchQuery)
-      }
-      else {
-        switch (searchType) {
-          case 'bookmarks':
-            console.log('[CCoding] 搜索书签...')
-            await bookmarkProvider.searchBookmarks(searchQuery, scope)
-            break
-          case 'todos':
-            console.log('[CCoding] 搜索待办事项...')
-            await todoProvider.searchTodos(searchQuery, scope)
-            break
-          case 'pinnedSymbols':
-            console.log('[CCoding] 搜索置顶符号...')
-            await pinnedSymbolProvider.searchPinnedSymbols(searchQuery, scope)
-            break
-          case 'all':
-          default:
-            console.log('[CCoding] 搜索所有内容...')
-            // 避免并发搜索，改为串行处理，减少系统压力
-            await bookmarkProvider.searchBookmarks(searchQuery, scope)
-            await todoProvider.searchTodos(searchQuery, scope)
-            await pinnedSymbolProvider.searchPinnedSymbols(searchQuery, scope)
-            break
-        }
-      }
-      console.log('[CCoding] 搜索完成')
-    }
-    catch (error) {
-      console.error('[CCoding] 搜索错误:', error)
-      vscode.window.showErrorMessage(`搜索时发生错误: ${error}`)
-    }
-  }
-  else {
-    // 如果搜索内容为空，清除搜索状态
-    console.log('[CCoding] 清除搜索状态')
-    searchQuery = ''
-    hasActiveSearch = false
-    vscode.commands.executeCommand('setContext', 'CCoding.hasActiveSearch', hasActiveSearch)
-
-    // 清除相关provider的搜索状态
-    functionListProvider.clearSearch()
-    if (currentTab !== 'symbols') {
-      bookmarkProvider.clearSearch()
-      todoProvider.clearSearch()
-      pinnedSymbolProvider.clearSearch()
-    }
-  }
-}
-
-/**
- * 清除搜索
- * @param tabSwitcherProvider - tab切换器provider
- * @param functionListProvider - 函数列表provider
- * @param bookmarkProvider - 书签provider
- * @param todoProvider - 待办provider
- * @param pinnedSymbolProvider - 置顶符号provider
- */
-function clearSearch(
-  tabSwitcherProvider: TabSwitcherProvider,
-  functionListProvider: FunctionListProvider,
-  bookmarkProvider: BookmarkProvider,
-  todoProvider: TodoProvider,
-  pinnedSymbolProvider: PinnedSymbolProvider,
-) {
-  searchQuery = ''
-  hasActiveSearch = false
-  vscode.commands.executeCommand('setContext', 'CCoding.hasActiveSearch', hasActiveSearch)
-
-  // 清除WebView中的搜索框
-  tabSwitcherProvider.clearSearch()
-
-  // 刷新相关provider以清除搜索过滤
-  functionListProvider.refresh()
-  if (currentTab !== 'symbols') {
-    bookmarkProvider.refresh()
-    todoProvider.refresh()
-    pinnedSymbolProvider.refresh()
-  }
-}
-
 export function deactivate() {
   console.log('[CCoding] 插件正在停用，清理资源...')
 
@@ -435,10 +319,9 @@ export function deactivate() {
     documentChangeTimeout = undefined
   }
 
-  // 这里无法直接访问provider实例，但可以通过globalState确保数据一致性
-  // 实际的数据保存已经在各个操作中进行了
+  // 注意：由于activation函数中的providers是局部变量，
+  // 这里无法直接访问，但dispose方法会在context.subscriptions中自动调用
 
-  // 清理资源
   console.log('[CCoding] 插件停用完成')
 }
 
