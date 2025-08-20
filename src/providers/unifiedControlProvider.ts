@@ -8,7 +8,7 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'CCoding.unifiedControl'
   private _view?: vscode.WebviewView
   private currentFilter: FilterType = 'all'
-  private stats = { total: 0, symbols: 0, bookmarks: 0, todos: 0, pinned: 0 }
+  private stats = { total: 0, symbols: 0, bookmarks: 0, todos: 0 } // Removed pinned
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
@@ -64,7 +64,7 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
       symbols: stats.symbols || 0,
       bookmarks: stats.bookmarks || 0,
       todos: stats.todos || 0,
-      pinned: stats.pinned || 0,
+      // pinned: 0, // Removed
     }
 
     if (this._view) {
@@ -235,11 +235,12 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
             }
         }
         
-        /* 置顶项标识 */
+        /* 移除置顶项标识
         .pinned-indicator {
             color: var(--vscode-charts-orange);
             font-size: 10px;
         }
+        */
     </style>
 </head>
 <body>
@@ -263,9 +264,6 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
             </button>
             <button class="filter-button" data-filter="todo" id="filterTodo">
                 待办 <span class="count" id="countTodos">0</span>
-            </button>
-            <button class="filter-button" data-filter="pinned" id="filterPinned">
-                <span class="pinned-indicator">📌</span> <span class="count" id="countPinned">0</span>
             </button>
         </div>
     </div>
@@ -358,7 +356,7 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
             document.getElementById('countSymbols').textContent = stats.symbols || 0;
             document.getElementById('countBookmarks').textContent = stats.bookmarks || 0;
             document.getElementById('countTodos').textContent = stats.todos || 0;
-            document.getElementById('countPinned').textContent = stats.pinned || 0;
+            // document.getElementById('countPinned').textContent = stats.pinned || 0; // Removed
             
             // 更新筛选按钮状态
             updateFilterButtonStates(stats);
@@ -370,7 +368,7 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
                 'symbol': { element: document.getElementById('filterSymbol'), count: stats.symbols || 0 },
                 'bookmark': { element: document.getElementById('filterBookmark'), count: stats.bookmarks || 0 },
                 'todo': { element: document.getElementById('filterTodo'), count: stats.todos || 0 },
-                'pinned': { element: document.getElementById('filterPinned'), count: stats.pinned || 0 }
+                // 'pinned': { element: document.getElementById('filterPinned'), count: stats.pinned || 0 } // Removed
             };
             
             Object.keys(buttons).forEach(type => {

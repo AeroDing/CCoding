@@ -1,4 +1,6 @@
 import * as vscode from 'vscode'
+import { ReactParser } from '../parsers/reactParser'
+import { VueParser } from '../parsers/vueParser'
 
 // 扩展的符号类型
 enum CustomSymbolKind {
@@ -348,18 +350,9 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
     // 为每个非空分组创建项目
     Object.entries(groups).forEach(([groupName, symbols]) => {
       if (symbols.length > 0) {
-        // 如果只有一个分组且符号数量少于等于10个，直接显示不分组
-        if (Object.keys(groups).length === 1 && symbols.length <= 10) {
-          result.push(...symbols
-            .sort((a, b) => a.range.start.line - b.range.start.line)
-            .map(func => this.createFunctionItemWithChildren(func)),
-          )
-        }
-        else {
-          // 创建分组头
-          const groupItem = this.createGroupItem(groupName, symbols)
-          result.push(groupItem)
-        }
+        // 始终创建分组，确保用户能看到清晰的中文分类
+        const groupItem = this.createGroupItem(groupName, symbols)
+        result.push(groupItem)
       }
     })
 
@@ -370,16 +363,41 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    * 按类型分组符号（优化版本 - 带重复检测和优先级）
    */
   private groupSymbolsByType(symbols: FunctionDetails[]): Record<string, FunctionDetails[]> {
+    // 检测当前文档的框架类型
+    const frameworkTypes = symbols.map(s => s.frameworkType).filter(Boolean)
+    const isReact = frameworkTypes.includes('react')
+    const isVue = frameworkTypes.includes('vue')
+
+    // 基础分组 - 使用直观的中文描述
     const groups: Record<string, FunctionDetails[]> = {
-      'DOM 元素': [],
-      'CSS 规则': [],
-      '类': [],
-      '函数': [],
-      '方法': [],
-      '其他': [],
+      '🎨 模板结构': [],
+      '🏛️ 类定义': [],
+      '⚡ 函数方法': [],
+      '📊 变量常量': [],
+      '🔧 其他': [],
     }
 
-    console.log(`[CCoding] 开始分组 ${symbols.length} 个符号`)
+    // React 特定分组
+    if (isReact) {
+      groups['🔧 React组件'] = []
+      groups['🪝 React Hooks'] = []
+      groups['⚡ 事件处理'] = []
+      groups['📋 组件属性'] = []
+      groups['🔄 生命周期'] = []
+    }
+
+    // Vue 特定分组 - 更详细和直观的分类
+    if (isVue) {
+      groups['🎨 模板结构'] = []
+      groups['📦 响应式数据'] = []
+      groups['⚙️ 计算属性'] = []
+      groups['⚡ 方法函数'] = []
+      groups['📨 组件属性'] = []
+      groups['🔄 生命周期'] = []
+      groups['🔧 Setup函数'] = []
+    }
+
+    console.log(`[CCoding] 开始分组 ${symbols.length} 个符号，框架: React=${isReact}, Vue=${isVue}`)
 
     // 用于检测重复的映射
     const seenSymbols = new Map<string, { symbol: FunctionDetails, group: string }>()
@@ -388,7 +406,8 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       console.log(`[CCoding] 分组符号 ${index}: ${symbol.name}`)
       console.log(`  - kind: ${symbol.kind}`)
       console.log(`  - customKind: ${symbol.customKind}`)
-      console.log(`  - signature: ${symbol.signature?.substring(0, 80)}`)
+      console.log(`  - frameworkType: ${symbol.frameworkType}`)
+      console.log(`  - additionalInfo: ${JSON.stringify(symbol.additionalInfo)}`)
 
       // 检查重复
       const symbolKey = `${symbol.name}:${symbol.range.start.line}`
@@ -399,49 +418,75 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
         return
       }
 
-      // 按照明确的优先级进行分组（高优先级优先）
       let targetGroup = ''
 
-      // 优先级1: 自定义类型（箭头函数等）
-      if (symbol.customKind === CustomSymbolKind.ArrowFunction
-        || symbol.customKind === CustomSymbolKind.AsyncFunction) {
-        groups['函数'].push(symbol)
-        targetGroup = '函数'
-        console.log(`  -> 函数 (自定义箭头函数) ✅`)
+      // React 特定分组逻辑
+      if (symbol.frameworkType === 'react' && symbol.additionalInfo) {
+        if (symbol.additionalInfo.isComponent) {
+          groups['🔧 React组件'].push(symbol)
+          targetGroup = '🔧 React组件'
+          console.log(`  -> React Component ✅`)
+        }
+        else if (symbol.additionalInfo.isHook) {
+          groups['🪝 React Hooks'].push(symbol)
+          targetGroup = '🪝 React Hooks'
+          console.log(`  -> React Hook ✅`)
+        }
+        else if (symbol.additionalInfo.isLifecycle) {
+          groups['🔄 生命周期'].push(symbol)
+          targetGroup = '🔄 生命周期'
+          console.log(`  -> React Lifecycle ✅`)
+        }
+        else {
+          // 继续常规分组
+          targetGroup = this.assignToRegularGroup(symbol, groups)
+        }
       }
-      // 优先级2: HTML/CSS 自定义类型
-      else if (this.isHTMLElement(symbol)) {
-        groups['DOM 元素'].push(symbol)
-        targetGroup = 'DOM 元素'
-        console.log(`  -> DOM 元素 ✅`)
+      // Vue 特定分组逻辑 - 更详细的分类
+      else if (symbol.frameworkType === 'vue') {
+        if (symbol.additionalInfo?.isComputed) {
+          groups['⚙️ 计算属性'].push(symbol)
+          targetGroup = '⚙️ 计算属性'
+          console.log(`  -> Vue Computed ✅`)
+        }
+        else if (symbol.additionalInfo?.isMethod) {
+          groups['⚡ 方法函数'].push(symbol)
+          targetGroup = '⚡ 方法函数'
+          console.log(`  -> Vue Method ✅`)
+        }
+        else if (symbol.additionalInfo?.isData) {
+          groups['📦 响应式数据'].push(symbol)
+          targetGroup = '📦 响应式数据'
+          console.log(`  -> Vue Data ✅`)
+        }
+        else if (symbol.additionalInfo?.isProp) {
+          groups['📨 组件属性'].push(symbol)
+          targetGroup = '📨 组件属性'
+          console.log(`  -> Vue Prop ✅`)
+        }
+        else if (symbol.additionalInfo?.isLifecycle || symbol.isLifecycle) {
+          groups['🔄 生命周期'].push(symbol)
+          targetGroup = '🔄 生命周期'
+          console.log(`  -> Vue Lifecycle ✅`)
+        }
+        else if (this.isVueTemplateSymbol(symbol)) {
+          groups['🎨 模板结构'].push(symbol)
+          targetGroup = '🎨 模板结构'
+          console.log(`  -> Vue Template ✅`)
+        }
+        else if (this.isVueSetupFunction(symbol)) {
+          groups['🔧 Setup函数'].push(symbol)
+          targetGroup = '🔧 Setup函数'
+          console.log(`  -> Vue Setup Function ✅`)
+        }
+        else {
+          // 继续常规分组
+          targetGroup = this.assignToRegularGroup(symbol, groups)
+        }
       }
-      else if (this.isCSSRule(symbol)) {
-        groups['CSS 规则'].push(symbol)
-        targetGroup = 'CSS 规则'
-        console.log(`  -> CSS 规则 ✅`)
-      }
-      // 优先级3: VSCode 标准类型
-      else if (this.isClass(symbol)) {
-        groups['类'].push(symbol)
-        targetGroup = '类'
-        console.log(`  -> 类 ✅`)
-      }
-      else if (this.isFunction(symbol)) {
-        groups['函数'].push(symbol)
-        targetGroup = '函数'
-        console.log(`  -> 函数 ✅`)
-      }
-      else if (this.isMethod(symbol)) {
-        groups['方法'].push(symbol)
-        targetGroup = '方法'
-        console.log(`  -> 方法 ✅`)
-      }
-      // 优先级4: 兜底分类
+      // 常规分组逻辑
       else {
-        groups['其他'].push(symbol)
-        targetGroup = '其他'
-        console.log(`  -> 其他 (未分类) ❌`)
-        console.log(`    原因: kind=${symbol.kind}, customKind=${symbol.customKind}`)
+        targetGroup = this.assignToRegularGroup(symbol, groups)
       }
 
       // 记录已分组的符号
@@ -460,25 +505,80 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       }
     })
 
-    // 验证函数组中是否包含 increment
-    const functionGroup = groups['函数']
-    const hasIncrement = functionGroup.some(f => f.name === 'increment')
-    console.log(`[CCoding] 🔍 验证: increment 是否在函数组? ${hasIncrement ? '✅ 是' : '❌ 否'}`)
-
-    if (!hasIncrement) {
-      // 查找 increment 在哪个组
-      Object.entries(groups).forEach(([groupName, groupSymbols]) => {
-        const found = groupSymbols.find(s => s.name === 'increment')
-        if (found) {
-          console.log(`[CCoding] 🔍 找到 increment 在: ${groupName} 组`)
-          console.log(`[CCoding]   - kind: ${found.kind}`)
-          console.log(`[CCoding]   - customKind: ${found.customKind}`)
-          console.log(`[CCoding]   - signature: ${found.signature}`)
-        }
-      })
-    }
-
     return groups
+  }
+
+  private assignToRegularGroup(symbol: FunctionDetails, groups: Record<string, FunctionDetails[]>): string {
+    // 优先级1: 自定义类型（箭头函数等）
+    if (symbol.customKind === CustomSymbolKind.ArrowFunction
+      || symbol.customKind === CustomSymbolKind.AsyncFunction) {
+      groups['⚡ 函数方法'].push(symbol)
+      console.log(`  -> ⚡ 函数方法 (自定义箭头函数) ✅`)
+      return '⚡ 函数方法'
+    }
+    // 优先级2: HTML/CSS 自定义类型
+    else if (this.isHTMLElement(symbol)) {
+      groups['🎨 模板结构'].push(symbol)
+      console.log(`  -> 🎨 模板结构 ✅`)
+      return '🎨 模板结构'
+    }
+    else if (this.isCSSRule(symbol)) {
+      groups['🎨 模板结构'].push(symbol)
+      console.log(`  -> 🎨 模板结构 (CSS规则) ✅`)
+      return '🎨 模板结构'
+    }
+    // 优先级3: VSCode 标准类型
+    else if (this.isClass(symbol)) {
+      groups['🏛️ 类定义'].push(symbol)
+      console.log(`  -> 🏛️ 类定义 ✅`)
+      return '🏛️ 类定义'
+    }
+    else if (this.isFunction(symbol)) {
+      groups['⚡ 函数方法'].push(symbol)
+      console.log(`  -> ⚡ 函数方法 ✅`)
+      return '⚡ 函数方法'
+    }
+    else if (this.isMethod(symbol)) {
+      groups['⚡ 函数方法'].push(symbol)
+      console.log(`  -> ⚡ 函数方法 (方法) ✅`)
+      return '⚡ 函数方法'
+    }
+    // 优先级4: 变量和属性
+    else if (symbol.kind === vscode.SymbolKind.Variable
+      || symbol.kind === vscode.SymbolKind.Property
+      || symbol.kind === vscode.SymbolKind.Field
+      || symbol.kind === vscode.SymbolKind.Constant) {
+      groups['📊 变量常量'].push(symbol)
+      console.log(`  -> 📊 变量常量 ✅`)
+      return '📊 变量常量'
+    }
+    // 优先级5: 兜底分类
+    else {
+      groups['🔧 其他'].push(symbol)
+      console.log(`  -> 🔧 其他 (未分类) ❌`)
+      console.log(`    原因: kind=${symbol.kind}, customKind=${symbol.customKind}`)
+      return '🔧 其他'
+    }
+  }
+
+  /**
+   * 判断是否为Vue模板符号
+   */
+  private isVueTemplateSymbol(symbol: FunctionDetails): boolean {
+    // 检查是否为HTML元素或模板相关符号
+    return symbol.customKind === CustomSymbolKind.HTMLElement
+      || symbol.name.startsWith('<')
+      || (symbol.kind === vscode.SymbolKind.Module && symbol.name === 'template')
+  }
+
+  /**
+   * 判断是否为Vue Setup函数
+   */
+  private isVueSetupFunction(symbol: FunctionDetails): boolean {
+    // 检查是否为setup函数或setup相关符号
+    return symbol.name === 'setup'
+      || symbol.name.startsWith('script setup')
+      || (symbol.kind === vscode.SymbolKind.Module && symbol.name.includes('script'))
   }
 
   /**
@@ -646,6 +746,9 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
 
     if (isVueFile) {
       console.log(`[CCoding] 📋 Vue文件特殊处理激活`)
+      // Vue 文件特殊处理：先解析 Vue 特定的结构
+      await this.parseVueFileStructure(document)
+
       // 记录Vue文件的基本信息
       const content = document.getText()
       const hasScriptSetup = content.includes('<script setup>')
@@ -931,7 +1034,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
           children: [],
           signature: fullMatch.trim(),
           parameters: this.extractArrowFunctionParams(fullMatch),
-          frameworkType: this.detectFrameworkType(document.fileName),
+          frameworkType: this.detectFrameworkType(document.fileName, document),
           isLifecycle: false,
           isPrivate: functionName.startsWith('_'),
           complexity: 1,
@@ -1391,7 +1494,7 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
           children: [],
           signature,
           parameters: this.extractParameters(symbol.detail || ''),
-          frameworkType: this.detectFrameworkType(document.fileName),
+          frameworkType: this.detectFrameworkType(document.fileName, document),
           isLifecycle: this.isLifecycleMethod(symbol.name, document.fileName),
           isPrivate: symbol.name.startsWith('_') || symbol.name.startsWith('#'),
           complexity: this.calculateComplexity(symbol.range, document),
@@ -1436,6 +1539,16 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
    * 检测并设置箭头函数的customKind（第一阶段关键修复）
    */
   private detectAndSetArrowFunctionKind(functionDetails: FunctionDetails, symbol: vscode.DocumentSymbol, signature: string) {
+    // 🔥 优先检查Vue computed属性
+    if (functionDetails.frameworkType === 'vue') {
+      if (this.isVueComputedProperty(functionDetails, symbol, signature)) {
+        functionDetails.additionalInfo = functionDetails.additionalInfo || {}
+        functionDetails.additionalInfo.isComputed = true
+        console.log(`[CCoding] 🎯 检测到Vue computed属性: ${functionDetails.name}`)
+        return
+      }
+    }
+
     // 检查是否为箭头函数的多种方式
     const isArrowFunction = this.detectArrowFunctionFromSignature(signature, symbol)
 
@@ -1449,6 +1562,40 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
       console.log(`[CCoding]   - 签名: ${signature.substring(0, 60)}`)
       console.log(`[CCoding]   - detail: ${symbol.detail}`)
     }
+  }
+
+  /**
+   * 检测Vue computed属性
+   */
+  private isVueComputedProperty(functionDetails: FunctionDetails, symbol: vscode.DocumentSymbol, signature: string): boolean {
+    // 方法1: 检查符号名称
+    if (functionDetails.name.includes('computed') || functionDetails.name.endsWith('Computed')) {
+      console.log(`[CCoding] 🔍 Vue computed检测 - 名称匹配: ${functionDetails.name}`)
+      return true
+    }
+
+    // 方法2: 检查签名中的computed关键字
+    if (signature && (signature.includes('computed(') || signature.includes('computed:'))) {
+      console.log(`[CCoding] 🔍 Vue computed检测 - 签名匹配: ${signature}`)
+      return true
+    }
+
+    // 方法3: 检查symbol.detail
+    if (symbol.detail && symbol.detail.includes('computed')) {
+      console.log(`[CCoding] 🔍 Vue computed检测 - detail匹配: ${symbol.detail}`)
+      return true
+    }
+
+    // 方法4: 检查Vue特定的computed模式
+    if (signature && symbol.kind === vscode.SymbolKind.Variable) {
+      // Vue 3 Composition API: const doubleCount = computed(() => count.value * 2)
+      if (signature.match(/=\s*computed\s*\(/)) {
+        console.log(`[CCoding] 🔍 Vue computed检测 - Composition API模式: ${signature}`)
+        return true
+      }
+    }
+
+    return false
   }
 
   /**
@@ -1620,12 +1767,53 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
     return []
   }
 
-  private detectFrameworkType(fileName: string): 'react' | 'vue' | 'general' {
+  private detectFrameworkType(fileName: string, document?: vscode.TextDocument): 'react' | 'vue' | 'general' {
+    // 首先基于文件扩展名检测
     if (fileName.endsWith('.vue'))
       return 'vue'
     if (fileName.endsWith('.jsx') || fileName.endsWith('.tsx'))
       return 'react'
+
+    // 如果没有文档内容，只能基于文件名判断
+    if (!document) {
+      return 'general'
+    }
+
+    // 基于文件内容检测 React
+    const content = document.getText()
+    if (this.isReactFile(content)) {
+      return 'react'
+    }
+
+    // 基于文件内容检测 Vue
+    if (this.isVueFile(content)) {
+      return 'vue'
+    }
+
     return 'general'
+  }
+
+  private isReactFile(content: string): boolean {
+    return content.includes('import React')
+      || content.includes('from \'react\'')
+      || content.includes('from "react"')
+      || content.includes('JSX.Element')
+      || content.includes('React.Component')
+      || content.includes('React.FC')
+      || content.includes('useState')
+      || content.includes('useEffect')
+      || /jsx?\s*>/.test(content) // JSX 语法
+  }
+
+  private isVueFile(content: string): boolean {
+    return content.includes('import { defineComponent')
+      || content.includes('import { ref, reactive')
+      || content.includes('from \'vue\'')
+      || content.includes('from "vue"')
+      || content.includes('setup()')
+      || content.includes('Vue.component')
+      || content.includes('<template>')
+      || content.includes('export default defineComponent')
   }
 
   private isLifecycleMethod(name: string, fileName: string): boolean {
@@ -1638,22 +1826,249 @@ export class FunctionListProvider implements vscode.TreeDataProvider<FunctionIte
     return reactLifecycle.includes(name)
   }
 
-  private async extractReactInfo(symbol: vscode.DocumentSymbol, _document: vscode.TextDocument): Promise<any> {
-    // 简化版本，实际中可以利用ReactParser
+  private async extractReactInfo(symbol: vscode.DocumentSymbol, document: vscode.TextDocument): Promise<any> {
+    try {
+      // 使用 ReactParser 进行详细解析
+      const reactComponent = ReactParser.parseReactFile(document)
+      if (!reactComponent) {
+        return this.extractBasicReactInfo(symbol)
+      }
+
+      const info: any = {}
+
+      // 检查是否是 Hook
+      if (symbol.name.startsWith('use')) {
+        const hook = reactComponent.hooks.find(h => h.name === symbol.name)
+        if (hook) {
+          info.hookType = hook.type
+          info.dependencies = hook.dependencies
+          info.isHook = true
+        }
+      }
+
+      // 检查是否是组件方法
+      const method = reactComponent.methods.find(m => m.name === symbol.name)
+      if (method) {
+        info.isLifecycle = method.isLifecycle
+        info.params = method.params
+      }
+
+      // 检查是否是组件
+      if (symbol.name === reactComponent.name) {
+        info.componentType = reactComponent.type
+        info.props = reactComponent.props
+        info.isComponent = true
+      }
+
+      return info
+    }
+    catch (error) {
+      console.warn('[CCoding] ReactParser 解析失败:', error)
+      return this.extractBasicReactInfo(symbol)
+    }
+  }
+
+  private extractBasicReactInfo(symbol: vscode.DocumentSymbol): any {
     const info: any = {}
     if (symbol.name.startsWith('use')) {
       info.hookType = symbol.name
       info.isAsync = symbol.name.includes('Async')
+      info.isHook = true
     }
     return info
   }
 
-  private async extractVueInfo(symbol: vscode.DocumentSymbol, _document: vscode.TextDocument): Promise<any> {
-    // 简化版本，实际中可以利用VueParser
+  private async extractVueInfo(symbol: vscode.DocumentSymbol, document: vscode.TextDocument): Promise<any> {
+    try {
+      // 使用 VueParser 进行详细解析
+      const vueComponent = VueParser.parseVueFile(document)
+      if (!vueComponent) {
+        return this.extractBasicVueInfo(symbol)
+      }
+
+      const info: any = {}
+
+      // 检查是否是 computed 属性
+      const computed = vueComponent.computed.find(c => c.name === symbol.name)
+      if (computed) {
+        info.isComputed = true
+        info.hasGetter = computed.getter
+        info.hasSetter = computed.setter
+      }
+
+      // 检查是否是方法
+      const method = vueComponent.methods.find(m => m.name === symbol.name)
+      if (method) {
+        info.isMethod = true
+        info.params = method.params
+      }
+
+      // 检查是否是数据属性
+      const data = vueComponent.data.find(d => d.name === symbol.name)
+      if (data) {
+        info.isData = true
+        info.type = data.type
+      }
+
+      // 检查是否是 prop
+      const prop = vueComponent.props.find(p => p.name === symbol.name)
+      if (prop) {
+        info.isProp = true
+        info.required = prop.required
+        info.default = prop.default
+        info.type = prop.type
+      }
+
+      // 检查是否是生命周期
+      const lifecycle = vueComponent.lifecycle.find(l => l.name === symbol.name)
+      if (lifecycle) {
+        info.isLifecycle = true
+      }
+
+      return info
+    }
+    catch (error) {
+      console.warn('[CCoding] VueParser 解析失败:', error)
+      return this.extractBasicVueInfo(symbol)
+    }
+  }
+
+  private extractBasicVueInfo(symbol: vscode.DocumentSymbol): any {
     const info: any = {}
     const vueComputed = ['computed', 'get', 'set']
     info.isComputed = vueComputed.some(keyword => symbol.name.includes(keyword))
     return info
+  }
+
+  /**
+   * 专门解析 Vue 文件结构，创建 Vue 特定的符号
+   */
+  private async parseVueFileStructure(document: vscode.TextDocument): Promise<void> {
+    try {
+      console.log('[CCoding] 🧩 开始解析 Vue 文件结构')
+      const vueComponent = VueParser.parseVueFile(document)
+
+      if (!vueComponent) {
+        console.log('[CCoding] ❌ VueParser 无法解析此文件')
+        return
+      }
+
+      console.log(`[CCoding] ✅ Vue 组件解析成功: ${vueComponent.name}`)
+      console.log(`  - Props: ${vueComponent.props.length}`)
+      console.log(`  - Methods: ${vueComponent.methods.length}`)
+      console.log(`  - Computed: ${vueComponent.computed.length}`)
+      console.log(`  - Data: ${vueComponent.data.length}`)
+      console.log(`  - Lifecycle: ${vueComponent.lifecycle.length}`)
+
+      // 创建 Vue 特定的符号并添加到 functions 列表
+      this.createVueSpecificSymbols(vueComponent, document)
+    }
+    catch (error) {
+      console.error('[CCoding] Vue 文件解析失败:', error)
+    }
+  }
+
+  /**
+   * 根据 Vue 组件信息创建特定的符号
+   */
+  private createVueSpecificSymbols(vueComponent: any, document: vscode.TextDocument): void {
+    // 创建 Props 符号
+    vueComponent.props.forEach((prop: any) => {
+      const propSymbol: FunctionDetails = {
+        name: prop.name,
+        kind: vscode.SymbolKind.Property,
+        range: prop.range,
+        uri: document.uri,
+        level: 0,
+        children: [],
+        frameworkType: 'vue',
+        additionalInfo: {
+          isProp: true,
+          required: prop.required,
+          default: prop.default,
+          type: prop.type,
+        },
+      }
+      this.functions.push(propSymbol)
+      console.log(`[CCoding] ✅ 添加 Vue Prop: ${prop.name}`)
+    })
+
+    // 创建 Data 符号
+    vueComponent.data.forEach((data: any) => {
+      const dataSymbol: FunctionDetails = {
+        name: data.name,
+        kind: vscode.SymbolKind.Variable,
+        range: data.range,
+        uri: document.uri,
+        level: 0,
+        children: [],
+        frameworkType: 'vue',
+        additionalInfo: {
+          isData: true,
+          type: data.type,
+        },
+      }
+      this.functions.push(dataSymbol)
+      console.log(`[CCoding] ✅ 添加 Vue Data: ${data.name}`)
+    })
+
+    // 创建 Computed 符号
+    vueComponent.computed.forEach((computed: any) => {
+      const computedSymbol: FunctionDetails = {
+        name: computed.name,
+        kind: vscode.SymbolKind.Property,
+        range: computed.range,
+        uri: document.uri,
+        level: 0,
+        children: [],
+        frameworkType: 'vue',
+        additionalInfo: {
+          isComputed: true,
+          hasGetter: computed.getter,
+          hasSetter: computed.setter,
+        },
+      }
+      this.functions.push(computedSymbol)
+      console.log(`[CCoding] ✅ 添加 Vue Computed: ${computed.name}`)
+    })
+
+    // 创建 Methods 符号
+    vueComponent.methods.forEach((method: any) => {
+      const methodSymbol: FunctionDetails = {
+        name: method.name,
+        kind: vscode.SymbolKind.Method,
+        range: method.range,
+        uri: document.uri,
+        level: 0,
+        children: [],
+        frameworkType: 'vue',
+        additionalInfo: {
+          isMethod: true,
+          params: method.params,
+        },
+      }
+      this.functions.push(methodSymbol)
+      console.log(`[CCoding] ✅ 添加 Vue Method: ${method.name}`)
+    })
+
+    // 创建 Lifecycle 符号
+    vueComponent.lifecycle.forEach((lifecycle: any) => {
+      const lifecycleSymbol: FunctionDetails = {
+        name: lifecycle.name,
+        kind: vscode.SymbolKind.Method,
+        range: lifecycle.range,
+        uri: document.uri,
+        level: 0,
+        children: [],
+        frameworkType: 'vue',
+        isLifecycle: true,
+        additionalInfo: {
+          isLifecycle: true,
+        },
+      }
+      this.functions.push(lifecycleSymbol)
+      console.log(`[CCoding] ✅ 添加 Vue Lifecycle: ${lifecycle.name}`)
+    })
   }
 
   private calculateComplexity(range: vscode.Range, _document: vscode.TextDocument): number {
@@ -1865,7 +2280,22 @@ class FunctionItem extends vscode.TreeItem {
     const complexityInfo = this.getComplexityIndicator(details.complexity || 1)
 
     this.label = `${privateInfo}${lifecycleInfo}${asyncInfo}${details.name}${params}${typeInfo}`
-    this.description = `Line ${details.range.start.line + 1} ${complexityInfo}`
+
+    // 获取中文类型描述
+    let typeDescription = ''
+    if (details.customKind) {
+      typeDescription = this.getChineseCustomKindDisplayName(details.customKind)
+    }
+    else {
+      typeDescription = this.getChineseKindDisplayName(details.kind)
+    }
+
+    // 特殊处理Vue符号
+    if (details.frameworkType === 'vue') {
+      typeDescription = this.getVueSymbolTypeDescription(details)
+    }
+
+    this.description = `${typeDescription} • L:${details.range.start.line + 1} ${complexityInfo}`
 
     // 构建详细的tooltip
     let tooltip = `${details.name}${params}${typeInfo}\n`
@@ -1877,6 +2307,65 @@ class FunctionItem extends vscode.TreeItem {
     }
     else {
       tooltip += `🔧 ${this.getKindDisplayName(details.kind)}\n`
+    }
+
+    // 框架特定信息
+    if (details.frameworkType !== 'general') {
+      tooltip += `⚡ ${details.frameworkType.toUpperCase()} component\n`
+
+      // React 特定信息
+      if (details.frameworkType === 'react' && details.additionalInfo) {
+        if (details.additionalInfo.isComponent) {
+          tooltip += `🔧 React Component (${details.additionalInfo.componentType || 'unknown'})\n`
+          if (details.additionalInfo.props?.length) {
+            tooltip += `📋 Props: ${details.additionalInfo.props.length}\n`
+          }
+        }
+        if (details.additionalInfo.isHook) {
+          tooltip += `🪝 React Hook: ${details.additionalInfo.hookType || details.name}\n`
+          if (details.additionalInfo.dependencies?.length) {
+            tooltip += `🔗 Dependencies: ${details.additionalInfo.dependencies.join(', ')}\n`
+          }
+        }
+        if (details.additionalInfo.isLifecycle) {
+          tooltip += `🔄 React Lifecycle Method\n`
+        }
+      }
+
+      // Vue 特定信息
+      if (details.frameworkType === 'vue' && details.additionalInfo) {
+        if (details.additionalInfo.isComputed) {
+          tooltip += `⚙️ Vue Computed Property\n`
+          if (details.additionalInfo.hasGetter)
+            tooltip += `  📤 Has Getter\n`
+          if (details.additionalInfo.hasSetter)
+            tooltip += `  📥 Has Setter\n`
+        }
+        if (details.additionalInfo.isMethod) {
+          tooltip += `🔧 Vue Method\n`
+          if (details.additionalInfo.params?.length) {
+            tooltip += `📋 Parameters: ${details.additionalInfo.params.join(', ')}\n`
+          }
+        }
+        if (details.additionalInfo.isData) {
+          tooltip += `💾 Vue Data Property\n`
+          if (details.additionalInfo.type) {
+            tooltip += `🏷️ Type: ${details.additionalInfo.type}\n`
+          }
+        }
+        if (details.additionalInfo.isProp) {
+          tooltip += `📨 Vue Prop\n`
+          if (details.additionalInfo.required)
+            tooltip += `  ⚠️ Required\n`
+          if (details.additionalInfo.default)
+            tooltip += `  🔧 Default: ${details.additionalInfo.default}\n`
+          if (details.additionalInfo.type)
+            tooltip += `  🏷️ Type: ${details.additionalInfo.type}\n`
+        }
+        if (details.additionalInfo.isLifecycle) {
+          tooltip += `🔄 Vue Lifecycle Hook\n`
+        }
+      }
     }
 
     // 显示层级信息
@@ -1892,18 +2381,6 @@ class FunctionItem extends vscode.TreeItem {
 
     if (details.signature) {
       tooltip += `📝 ${details.signature}\n`
-    }
-
-    if (details.frameworkType !== 'general') {
-      tooltip += `⚡ ${details.frameworkType.toUpperCase()} component\n`
-    }
-
-    if (details.additionalInfo?.hookType) {
-      tooltip += `🪝 Hook: ${details.additionalInfo.hookType}\n`
-    }
-
-    if (details.additionalInfo?.isComputed) {
-      tooltip += `💻 Computed property\n`
     }
 
     if (details.children?.length) {
@@ -1950,8 +2427,10 @@ class FunctionItem extends vscode.TreeItem {
 
   private setupBasicItem() {
     if (this.range && this.uri) {
+      // 为基本项目也使用中文类型描述
+      const kindName = this.kind ? this.getChineseKindDisplayName(this.kind) : '符号'
       this.tooltip = `${this.name} (Line ${this.range.start.line + 1})`
-      this.description = `Line ${this.range.start.line + 1}`
+      this.description = `${kindName} • L:${this.range.start.line + 1}`
 
       this.command = {
         command: 'vscode.open',
@@ -1965,6 +2444,34 @@ class FunctionItem extends vscode.TreeItem {
           ),
         }],
       }
+    }
+  }
+
+  /**
+   * 获取符号类型的中文友好名称（在FunctionItem中也需要这个方法）
+   */
+  private getChineseKindDisplayName(kind: vscode.SymbolKind): string {
+    switch (kind) {
+      case vscode.SymbolKind.Function:
+        return '函数'
+      case vscode.SymbolKind.Method:
+        return '方法'
+      case vscode.SymbolKind.Constructor:
+        return '构造函数'
+      case vscode.SymbolKind.Class:
+        return '类'
+      case vscode.SymbolKind.Property:
+        return '属性'
+      case vscode.SymbolKind.Field:
+        return '字段'
+      case vscode.SymbolKind.Variable:
+        return '变量'
+      case vscode.SymbolKind.Constant:
+        return '常量'
+      case vscode.SymbolKind.Module:
+        return '模块'
+      default:
+        return '符号'
     }
   }
 
@@ -1982,6 +2489,42 @@ class FunctionItem extends vscode.TreeItem {
 
   private getGroupIcon(): vscode.ThemeIcon {
     switch (this.name) {
+      // React 特定分组
+      case '🔧 React组件':
+        return new vscode.ThemeIcon('symbol-module', new vscode.ThemeColor('charts.blue'))
+      case '🪝 React Hooks':
+        return new vscode.ThemeIcon('symbol-event', new vscode.ThemeColor('charts.blue'))
+      case '⚡ 事件处理':
+        return new vscode.ThemeIcon('zap', new vscode.ThemeColor('charts.blue'))
+      case '📋 组件属性':
+        return new vscode.ThemeIcon('symbol-parameter', new vscode.ThemeColor('charts.blue'))
+      case '🔄 生命周期':
+        return new vscode.ThemeIcon('symbol-event', new vscode.ThemeColor('charts.orange'))
+
+      // Vue 特定分组
+      case '🎨 模板结构':
+        return new vscode.ThemeIcon('symbol-tag', new vscode.ThemeColor('charts.green'))
+      case '📦 响应式数据':
+        return new vscode.ThemeIcon('symbol-variable', new vscode.ThemeColor('charts.green'))
+      case '⚙️ 计算属性':
+        return new vscode.ThemeIcon('gear', new vscode.ThemeColor('charts.green'))
+      case '⚡ 方法函数':
+        return new vscode.ThemeIcon('symbol-method', new vscode.ThemeColor('charts.green'))
+      case '📨 组件属性':
+        return new vscode.ThemeIcon('symbol-parameter', new vscode.ThemeColor('charts.green'))
+      case '🔧 Setup函数':
+        return new vscode.ThemeIcon('symbol-function', new vscode.ThemeColor('charts.green'))
+
+      // 通用分组 - 使用新的中文名称
+      case '🏛️ 类定义':
+        return new vscode.ThemeIcon('symbol-class', new vscode.ThemeColor('symbolIcon.classForeground'))
+      case '⚡ 函数方法':
+        return new vscode.ThemeIcon('symbol-function', new vscode.ThemeColor('symbolIcon.functionForeground'))
+      case '📊 变量常量':
+        return new vscode.ThemeIcon('symbol-variable', new vscode.ThemeColor('symbolIcon.variableForeground'))
+      case '🔧 其他':
+        return new vscode.ThemeIcon('symbol-misc', new vscode.ThemeColor('foreground'))
+      // 保留旧的名称以向后兼容
       case 'Classes':
         return new vscode.ThemeIcon('symbol-class', new vscode.ThemeColor('symbolIcon.classForeground'))
       case 'Hooks':
@@ -2001,8 +2544,54 @@ class FunctionItem extends vscode.TreeItem {
     let color: vscode.ThemeColor | undefined
     let iconName: string
 
+    // React 特定图标逻辑
+    if (details.frameworkType === 'react' && details.additionalInfo) {
+      if (details.additionalInfo.isComponent) {
+        iconName = 'symbol-module'
+        color = new vscode.ThemeColor('charts.blue')
+      }
+      else if (details.additionalInfo.isHook) {
+        iconName = 'symbol-event'
+        color = new vscode.ThemeColor('charts.blue')
+      }
+      else if (details.additionalInfo.isLifecycle) {
+        iconName = 'symbol-event'
+        color = new vscode.ThemeColor('charts.orange')
+      }
+      else {
+        iconName = this.getDefaultIconForFramework(details, 'react')
+        color = new vscode.ThemeColor('charts.blue')
+      }
+    }
+    // Vue 特定图标逻辑
+    else if (details.frameworkType === 'vue' && details.additionalInfo) {
+      if (details.additionalInfo.isComputed) {
+        iconName = 'gear'
+        color = new vscode.ThemeColor('charts.green')
+      }
+      else if (details.additionalInfo.isMethod) {
+        iconName = 'symbol-method'
+        color = new vscode.ThemeColor('charts.green')
+      }
+      else if (details.additionalInfo.isData) {
+        iconName = 'symbol-variable'
+        color = new vscode.ThemeColor('charts.green')
+      }
+      else if (details.additionalInfo.isProp) {
+        iconName = 'symbol-parameter'
+        color = new vscode.ThemeColor('charts.green')
+      }
+      else if (details.additionalInfo.isLifecycle) {
+        iconName = 'symbol-event'
+        color = new vscode.ThemeColor('charts.orange')
+      }
+      else {
+        iconName = this.getDefaultIconForFramework(details, 'vue')
+        color = new vscode.ThemeColor('charts.green')
+      }
+    }
     // 优先使用自定义符号类型图标
-    if (details.customKind) {
+    else if (details.customKind) {
       iconName = this.getIconNameForCustomKind(details.customKind)
       color = this.getColorForCustomKind(details.customKind)
     }
@@ -2048,6 +2637,23 @@ class FunctionItem extends vscode.TreeItem {
     }
 
     return new vscode.ThemeIcon(iconName, color)
+  }
+
+  private getDefaultIconForFramework(details: FunctionDetails, _framework: 'react' | 'vue'): string {
+    // 根据符号类型和框架返回合适的图标
+    if (details.kind === vscode.SymbolKind.Function) {
+      return 'symbol-function'
+    }
+    else if (details.kind === vscode.SymbolKind.Method) {
+      return 'symbol-method'
+    }
+    else if (details.kind === vscode.SymbolKind.Variable) {
+      return 'symbol-variable'
+    }
+    else if (details.kind === vscode.SymbolKind.Class) {
+      return 'symbol-class'
+    }
+    return 'symbol-misc'
   }
 
   /**
@@ -2133,6 +2739,69 @@ class FunctionItem extends vscode.TreeItem {
         return new vscode.ThemeIcon('symbol-field', color)
       default:
         return new vscode.ThemeIcon('symbol-function', color)
+    }
+  }
+
+  /**
+   * 获取Vue符号的类型描述
+   */
+  private getVueSymbolTypeDescription(details: FunctionDetails): string {
+    if (details.additionalInfo?.isComputed) {
+      return '计算属性'
+    }
+    if (details.additionalInfo?.isData) {
+      return '响应式数据'
+    }
+    if (details.additionalInfo?.isMethod) {
+      return '方法'
+    }
+    if (details.additionalInfo?.isProp) {
+      return '组件属性'
+    }
+    if (details.isLifecycle) {
+      return '生命周期'
+    }
+
+    // 基于签名的智能检测
+    if (details.signature) {
+      if (details.signature.includes('computed(') || details.signature.includes('computed:')) {
+        return '计算属性'
+      }
+      if (details.signature.includes('ref(') || details.signature.includes('reactive(')) {
+        return '响应式数据'
+      }
+    }
+
+    // 基于名称的智能检测
+    if (details.name.startsWith('computed') || details.name.endsWith('Computed')) {
+      return '计算属性'
+    }
+
+    // 回退到通用描述
+    return this.getChineseKindDisplayName(details.kind)
+  }
+
+  /**
+   * 获取自定义符号类型的中文显示名称
+   */
+  private getChineseCustomKindDisplayName(customKind: CustomSymbolKind): string {
+    switch (customKind) {
+      case CustomSymbolKind.HTMLElement:
+        return 'HTML元素'
+      case CustomSymbolKind.CSSRule:
+        return 'CSS规则'
+      case CustomSymbolKind.CSSSelector:
+        return 'CSS选择器'
+      case CustomSymbolKind.VueComponent:
+        return 'Vue组件'
+      case CustomSymbolKind.ReactComponent:
+        return 'React组件'
+      case CustomSymbolKind.ArrowFunction:
+        return '箭头函数'
+      case CustomSymbolKind.AsyncFunction:
+        return '异步函数'
+      default:
+        return '自定义符号'
     }
   }
 

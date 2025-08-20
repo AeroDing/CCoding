@@ -5,7 +5,7 @@ import * as vscode from 'vscode'
  */
 export interface UnifiedItem {
   id: string
-  type: 'symbol' | 'bookmark' | 'todo' | 'pinned'
+  type: 'symbol' | 'bookmark' | 'todo' | 'group'
   label: string
   description?: string
   location: {
@@ -19,17 +19,35 @@ export interface UnifiedItem {
   timestamp: number
   uri: vscode.Uri
   range: vscode.Range
+
+  // WebView 序列化友好字段
+  uriString: string
+  simpleRange: {
+    startLine: number
+    startCharacter: number
+    endLine: number
+    endCharacter: number
+  }
+
+  // 分组支持
+  isGroup?: boolean
+  groupName?: string
+  children?: UnifiedItem[]
+  isExpanded?: boolean
   // 扩展属性
   symbolKind?: vscode.SymbolKind
   todoType?: 'TODO' | 'FIXME' | 'NOTE' | 'BUG' | 'HACK'
   bookmarkNote?: string
   priority?: number
+  // 中文类型描述
+  chineseType?: string
+  frameworkType?: 'react' | 'vue' | 'general'
 }
 
 /**
  * 筛选器类型
  */
-export type FilterType = 'all' | 'symbol' | 'bookmark' | 'todo' | 'pinned'
+export type FilterType = 'all' | 'symbol' | 'bookmark' | 'todo'
 
 /**
  * 排序类型
@@ -108,53 +126,35 @@ export class UnifiedListItem extends vscode.TreeItem {
 
   private createIcon(): vscode.ThemeIcon {
     const { unifiedItem } = this
+    // 移除置顶项的特殊处理
     let iconId: string
     let color: string | undefined
 
-    // 置顶项使用特殊图标
-    if (unifiedItem.isPinned) {
-      iconId = 'pinned'
-      color = 'charts.orange'
-    }
-    else {
-      switch (unifiedItem.type) {
-        case 'symbol':
-          iconId = this.getSymbolIcon(unifiedItem.symbolKind)
-          break
-        case 'bookmark':
-          iconId = 'bookmark'
-          color = 'charts.blue'
-          break
-        case 'todo':
-          iconId = this.getTodoIcon(unifiedItem.todoType)
-          color = this.getTodoColor(unifiedItem.todoType)
-          break
-        case 'pinned':
-          iconId = 'pin'
-          color = 'charts.orange'
-          break
-        default:
-          iconId = 'circle-outline'
-      }
+    switch (unifiedItem.type) {
+      case 'symbol':
+        iconId = this.getSymbolIcon(unifiedItem.symbolKind)
+        break
+      case 'bookmark':
+        iconId = 'bookmark'
+        color = 'charts.blue'
+        break
+      case 'todo':
+        iconId = this.getTodoIcon(unifiedItem.todoType)
+        color = this.getTodoColor(unifiedItem.todoType)
+        break
+      default:
+        iconId = 'circle-outline'
     }
 
-    const icon = new vscode.ThemeIcon(iconId)
-    if (color) {
-      icon.color = new vscode.ThemeColor(color)
-    }
+    const icon = color
+      ? new vscode.ThemeIcon(iconId, new vscode.ThemeColor(color))
+      : new vscode.ThemeIcon(iconId)
     return icon
   }
 
   private createContextValue(): string {
-    const baseType = this.unifiedItem.type
-
-    // 如果是置顶项，添加pinned标识
-    if (this.unifiedItem.isPinned) {
-      return `${baseType}-pinned`
-    }
-
-    // 否则直接返回类型
-    return baseType
+    // 移除置顶标识，直接返回类型
+    return this.unifiedItem.type
   }
 
   private getTypeLabel(type: string): string {
@@ -162,7 +162,7 @@ export class UnifiedListItem extends vscode.TreeItem {
       symbol: '符号',
       bookmark: '书签',
       todo: '待办',
-      pinned: '置顶',
+      // pinned: '置顶', // Removed
     }
     return typeMap[type] || type
   }
@@ -243,13 +243,13 @@ export class UnifiedListProvider implements vscode.TreeDataProvider<UnifiedListI
   readonly onDidChangeTreeData: vscode.Event<UnifiedListItem | undefined | null | void> = this._onDidChangeTreeData.event
 
   private items: UnifiedItem[] = []
-  private pinnedItems: UnifiedItem[] = []
+  // private pinnedItems: UnifiedItem[] = [] // Removed
   private activeFilter: FilterType = 'all'
   private sortType: SortType = 'position'
   private searchQuery: string = ''
 
   constructor(private context: vscode.ExtensionContext) {
-    this.loadPinnedItems()
+    // this.loadPinnedItems() // Removed
   }
 
   /**
@@ -330,50 +330,25 @@ export class UnifiedListProvider implements vscode.TreeDataProvider<UnifiedListI
    */
   removeItem(id: string): void {
     this.items = this.items.filter(item => item.id !== id)
-    this.pinnedItems = this.pinnedItems.filter(item => item.id !== id)
+    // 禁用置顶功能
     this.savePinnedItems()
     this.refresh()
   }
 
   /**
-   * 置顶项目
+   * 置顶项目 (已移除)
    */
-  pinItem(item: UnifiedItem): void {
-    const pinnedItem = { ...item, isPinned: true, timestamp: Date.now() }
-
-    // 从普通列表中移除（如果存在）
-    this.items = this.items.filter(existing => existing.id !== item.id)
-
-    // 添加到置顶列表
-    const existingPinnedIndex = this.pinnedItems.findIndex(existing => existing.id === item.id)
-    if (existingPinnedIndex >= 0) {
-      this.pinnedItems[existingPinnedIndex] = pinnedItem
-    }
-    else {
-      this.pinnedItems.push(pinnedItem)
-    }
-
-    this.savePinnedItems()
-    this.refresh()
+  pinItem(_item: UnifiedItem): void {
+    // 置顶功能已被移除
+    vscode.window.showWarningMessage('置顶功能已被移除，请使用书签功能')
   }
 
   /**
-   * 取消置顶项目
+   * 取消置顶项目 (已移除)
    */
-  unpinItem(id: string): void {
-    const pinnedItem = this.pinnedItems.find(item => item.id === id)
-    if (!pinnedItem)
-      return
-
-    // 从置顶列表移除
-    this.pinnedItems = this.pinnedItems.filter(item => item.id !== id)
-
-    // 添加回普通列表
-    const normalItem = { ...pinnedItem, isPinned: false }
-    this.items.push(normalItem)
-
-    this.savePinnedItems()
-    this.refresh()
+  unpinItem(_id: string): void {
+    // 置顶功能已被移除
+    vscode.window.showWarningMessage('置顶功能已被移除')
   }
 
   /**
@@ -419,7 +394,7 @@ export class UnifiedListProvider implements vscode.TreeDataProvider<UnifiedListI
    * 获取根项目列表
    */
   private getRootItems(): UnifiedListItem[] {
-    let allItems = [...this.pinnedItems, ...this.items]
+    let allItems = [...this.items] // Removed pinnedItems
 
     // 应用搜索过滤
     if (this.searchQuery) {
@@ -448,7 +423,7 @@ export class UnifiedListProvider implements vscode.TreeDataProvider<UnifiedListI
    * 比较项目用于排序
    */
   private compareItems(a: UnifiedItem, b: UnifiedItem): number {
-    // 置顶项永远在前
+    // 移除置顶项的永远在前逻辑
     if (a.isPinned !== b.isPinned) {
       return a.isPinned ? -1 : 1
     }
@@ -458,7 +433,7 @@ export class UnifiedListProvider implements vscode.TreeDataProvider<UnifiedListI
         return a.location.line - b.location.line
       case 'type':
         if (a.type !== b.type) {
-          const typeOrder = ['symbol', 'bookmark', 'todo', 'pinned']
+          const typeOrder = ['symbol', 'bookmark', 'todo'] // Removed 'pinned'
           return typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type)
         }
         return a.location.line - b.location.line
@@ -472,21 +447,17 @@ export class UnifiedListProvider implements vscode.TreeDataProvider<UnifiedListI
   }
 
   /**
-   * 加载置顶项目
+   * 加载置顶项目 (已移除)
    */
   private loadPinnedItems(): void {
-    const saved = this.context.globalState.get<UnifiedItem[]>('CCoding.unifiedPinnedItems', [])
-    this.pinnedItems = saved.filter((item) => {
-      // 验证数据完整性
-      return item && item.id && item.label && item.uri && item.range
-    })
+    // 置顶功能已被移除
   }
 
   /**
-   * 保存置顶项目
+   * 保存置顶项目 (已移除)
    */
   private savePinnedItems(): void {
-    this.context.globalState.update('CCoding.unifiedPinnedItems', this.pinnedItems)
+    // 置顶功能已被移除
   }
 
   /**
@@ -494,11 +465,11 @@ export class UnifiedListProvider implements vscode.TreeDataProvider<UnifiedListI
    */
   getStats(): { [key: string]: number } {
     const stats = {
-      total: this.items.length + this.pinnedItems.length,
+      total: this.items.length, // Removed pinnedItems
       symbols: 0,
       bookmarks: 0,
       todos: 0,
-      pinned: this.pinnedItems.length,
+      // pinned: 0, // Removed
     }
 
     this.items.forEach((item) => {
@@ -514,6 +485,6 @@ export class UnifiedListProvider implements vscode.TreeDataProvider<UnifiedListI
   dispose(): void {
     this.savePinnedItems()
     this.items = []
-    this.pinnedItems = []
+    // this.pinnedItems = [] // Removed
   }
 }

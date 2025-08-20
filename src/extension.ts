@@ -1,11 +1,14 @@
 import * as vscode from 'vscode'
 import { BookmarkProvider } from './providers/bookmarkProvider'
+import { CurrentFileNavProvider } from './providers/currentFileNavProvider'
 import { DataAdapter } from './providers/dataAdapter'
 import { FunctionListProvider } from './providers/functionListProvider'
-import { PinnedSymbolProvider } from './providers/pinnedSymbolProvider'
+import { GlobalBookmarksProvider } from './providers/globalBookmarksProvider'
+import { GlobalTodosProvider } from './providers/globalTodosProvider'
+import { QuickAccessProvider } from './providers/quickAccessProvider'
 import { TimelineProvider } from './providers/timelineProvider'
 import { TodoProvider } from './providers/todoProvider'
-import { UnifiedWebViewProvider } from './providers/unifiedWebViewProvider'
+import { SearchType } from './services/unifiedSearchService'
 
 // 全局状态管理
 let documentChangeTimeout: NodeJS.Timeout | undefined
@@ -18,7 +21,6 @@ export function activate(context: vscode.ExtensionContext) {
     const functionListProvider = new FunctionListProvider()
     const bookmarkProvider = new BookmarkProvider(context)
     const todoProvider = new TodoProvider()
-    const pinnedSymbolProvider = new PinnedSymbolProvider(context)
     const timelineProvider = new TimelineProvider()
 
     // 创建数据适配器
@@ -26,74 +28,90 @@ export function activate(context: vscode.ExtensionContext) {
       functionListProvider,
       bookmarkProvider,
       todoProvider,
-      pinnedSymbolProvider,
     )
 
-    // 创建统一WebView Provider和数据刷新函数
-    let unifiedWebViewProvider: UnifiedWebViewProvider
-
-    async function refreshAllData() {
-      try {
-        console.log('[CCoding] 开始刷新所有数据...')
-        const data = await dataAdapter.refreshAllData()
-
-        // 合并所有数据
-        const allItems = [
-          ...data.symbols,
-          ...data.bookmarks,
-          ...data.todos,
-          ...data.pinned,
-        ]
-
-        // 计算统计信息
-        const stats = {
-          total: allItems.length,
-          symbols: data.symbols.length,
-          bookmarks: data.bookmarks.length,
-          todos: data.todos.length,
-          pinned: data.pinned.length,
-        }
-
-        console.log('[CCoding] 更新统一WebView数据:', stats)
-        if (unifiedWebViewProvider) {
-          unifiedWebViewProvider.updateData(allItems, stats)
-        }
-
-        console.log('[CCoding] 数据刷新完成')
-      }
-      catch (error) {
-        console.error('[CCoding] 数据刷新失败:', error)
-        vscode.window.showErrorMessage(`CCoding数据刷新失败: ${error}`)
-      }
-    }
-
-    unifiedWebViewProvider = new UnifiedWebViewProvider(
+    // 创建新的5个专业化视图Provider
+    const currentFileNavProvider = new CurrentFileNavProvider(
       context.extensionUri,
-      (filter) => {
-        console.log(`[CCoding] 筛选器改变: ${filter}`)
-        // 在WebView内部处理筛选，这里只是日志
-      },
-      (query) => {
-        console.log(`[CCoding] 搜索查询: ${query}`)
-        // 在WebView内部处理搜索，这里只是日志
-      },
+      dataAdapter,
       (item) => {
-        // 处理项目点击 - 跳转到位置
-        vscode.window.showTextDocument(item.uri, {
-          selection: new vscode.Range(item.range.start, item.range.start),
-        })
+        // 处理当前文件导航的项目点击
+        try {
+          if (!item.uriString || !item.simpleRange) {
+            console.error('[CCoding] 项目缺少必要的跳转信息:', item)
+            vscode.window.showErrorMessage(`跳转失败: 项目缺少位置信息`)
+            return
+          }
+
+          console.log('[CCoding] 当前文件导航点击:', item.label, item.uriString)
+          const uri = vscode.Uri.parse(item.uriString)
+          const range = new vscode.Range(
+            new vscode.Position(item.simpleRange.startLine, item.simpleRange.startCharacter),
+            new vscode.Position(item.simpleRange.endLine, item.simpleRange.endCharacter),
+          )
+
+          vscode.window.showTextDocument(uri, {
+            selection: new vscode.Range(range.start, range.start),
+            preserveFocus: false,
+          })
+        }
+        catch (error) {
+          console.error('[CCoding] 当前文件导航跳转失败:', error)
+          vscode.window.showErrorMessage(`跳转失败: ${error}`)
+        }
       },
       (item) => {
         // 处理置顶切换
         console.log(`[CCoding] 切换置顶状态: ${item.label}`)
         // TODO: 实现置顶逻辑
       },
-      () => {
-        // 处理数据请求
-        console.log('[CCoding] WebView请求数据刷新')
-        refreshAllData()
-      },
     )
+
+    const globalBookmarksProvider = new GlobalBookmarksProvider(context, bookmarkProvider)
+    const globalTodosProvider = new GlobalTodosProvider()
+    const quickAccessProvider = new QuickAccessProvider(context, timelineProvider)
+
+    // 注册视图
+    context.subscriptions.push(
+      // 1. 当前文件导航 WebView
+      vscode.window.registerWebviewViewProvider(
+        CurrentFileNavProvider.viewType,
+        currentFileNavProvider,
+      ),
+
+      // 2. 全局书签管理 TreeView
+      vscode.window.createTreeView('CCoding.globalBookmarks', {
+        treeDataProvider: globalBookmarksProvider,
+        showCollapseAll: true,
+        canSelectMany: false,
+      }),
+
+      // 3. 全局待办事项 TreeView
+      vscode.window.createTreeView('CCoding.globalTodos', {
+        treeDataProvider: globalTodosProvider,
+        showCollapseAll: true,
+        canSelectMany: false,
+      }),
+
+      // 4. 快速访问面板 TreeView
+      vscode.window.createTreeView('CCoding.quickAccess', {
+        treeDataProvider: quickAccessProvider,
+        showCollapseAll: true,
+        canSelectMany: false,
+      }),
+    )
+
+    // 数据刷新函数
+    async function refreshCurrentFileNav() {
+      try {
+        console.log('[CCoding] 刷新当前文件导航...')
+        await currentFileNavProvider.refresh()
+        console.log('[CCoding] 当前文件导航刷新完成')
+      }
+      catch (error) {
+        console.error('[CCoding] 当前文件导航刷新失败:', error)
+      }
+    }
 
     // TODO装饰器初始化（延迟执行）
     const initializeTodoDecorations = () => {
@@ -101,13 +119,19 @@ export function activate(context: vscode.ExtensionContext) {
       todoProvider.initializeDecorations()
     }
 
+    // 初始化逻辑
     if (vscode.window.activeTextEditor) {
       // 延迟初始化，确保编辑器完全加载
       setTimeout(() => {
         console.log('[CCoding] 延迟初始化开始...')
         initializeTodoDecorations()
         // 再次延迟以确保TODO装饰器完全初始化
-        setTimeout(refreshAllData, 500)
+        setTimeout(() => {
+          refreshCurrentFileNav()
+          globalBookmarksProvider.refresh()
+          globalTodosProvider.refresh()
+          quickAccessProvider.refresh()
+        }, 500)
       }, 1000)
     }
     else {
@@ -116,31 +140,62 @@ export function activate(context: vscode.ExtensionContext) {
         if (editor) {
           console.log('[CCoding] 编辑器激活，开始初始化...')
           initializeTodoDecorations()
-          setTimeout(refreshAllData, 500)
+          setTimeout(() => {
+            refreshCurrentFileNav()
+            globalBookmarksProvider.refresh()
+            globalTodosProvider.refresh()
+            quickAccessProvider.refresh()
+          }, 500)
           disposableInit.dispose()
         }
       })
       context.subscriptions.push(disposableInit)
     }
 
-    // 注册统一WebView
-    context.subscriptions.push(
-      vscode.window.registerWebviewViewProvider(
-        UnifiedWebViewProvider.viewType,
-        unifiedWebViewProvider,
-      ),
-    )
-
-    // WebView注册后立即刷新数据
+    // 视图注册后立即刷新数据
     setTimeout(() => {
-      console.log('[CCoding] WebView注册后刷新数据')
-      refreshAllData()
+      console.log('[CCoding] 视图注册后刷新数据')
+      refreshCurrentFileNav()
+      globalBookmarksProvider.refresh()
+      globalTodosProvider.refresh()
+      quickAccessProvider.refresh()
     }, 100)
 
     const disposables = [
       // 传统命令（保持兼容）
       vscode.commands.registerCommand('CCoding.showFunctionList', () => {
         functionListProvider.refresh()
+      }),
+
+      // 统一搜索命令
+      vscode.commands.registerCommand('CCoding.unifiedSearch', async () => {
+        const query = await vscode.window.showInputBox({
+          prompt: '统一搜索',
+          placeHolder: '搜索文件、符号、TODO、书签...',
+        })
+        if (query !== undefined && query.trim()) {
+          await quickAccessProvider.performKeywordSearch(query.trim())
+        }
+      }),
+
+      vscode.commands.registerCommand('CCoding.selectSearchType', async () => {
+        const searchTypes = [
+          { label: '🔍 全部', description: '搜索所有类型', value: SearchType.ALL },
+          { label: '📁 文件', description: '仅搜索文件名', value: SearchType.FILES },
+          { label: '🎯 符号', description: '仅搜索代码符号', value: SearchType.SYMBOLS },
+          { label: '📝 待办', description: '仅搜索TODO项目', value: SearchType.TODOS },
+          { label: '📖 书签', description: '仅搜索书签', value: SearchType.BOOKMARKS },
+        ]
+
+        const selected = await vscode.window.showQuickPick(searchTypes, {
+          placeHolder: '选择搜索类型',
+          matchOnDescription: true,
+        })
+
+        if (selected) {
+          quickAccessProvider.setSearchType(selected.value)
+          vscode.window.showInformationMessage(`已切换到 ${selected.label} 搜索模式`)
+        }
       }),
 
       vscode.commands.registerCommand('CCoding.addBookmark', () => {
@@ -155,9 +210,7 @@ export function activate(context: vscode.ExtensionContext) {
         showQuickJumpPicker()
       }),
 
-      vscode.commands.registerCommand('CCoding.pinSymbol', () => {
-        pinnedSymbolProvider.pinCurrentSymbol()
-      }),
+      // Removed pinSymbol command
 
       vscode.commands.registerCommand('CCoding.showTodos', () => {
         todoProvider.forceRefresh()
@@ -175,17 +228,11 @@ export function activate(context: vscode.ExtensionContext) {
         bookmarkProvider.addBookmarkFromEditor()
       }),
 
-      vscode.commands.registerCommand('CCoding.pinSymbolFromEditor', () => {
-        pinnedSymbolProvider.pinCurrentSymbol()
-      }),
+      // Removed pinSymbolFromEditor command
 
-      vscode.commands.registerCommand('CCoding.unpinSymbol', (item: any) => {
-        pinnedSymbolProvider.unpinSymbol(item.pinnedSymbol.id)
-      }),
+      // Removed unpinSymbol command
 
-      vscode.commands.registerCommand('CCoding.clearAllPinnedSymbols', () => {
-        pinnedSymbolProvider.clearAllPinnedSymbols()
-      }),
+      // Removed clearAllPinnedSymbols command
 
       vscode.commands.registerCommand('CCoding.editBookmark', (item: any) => {
         const bookmarkId = item.bookmark?.id || (item.unifiedItem?.id.startsWith('bookmark-') ? item.unifiedItem.id.replace('bookmark-', '') : null)
@@ -201,15 +248,93 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }),
 
-      // 统一视图命令
-      vscode.commands.registerCommand('CCoding.refreshUnifiedView', () => {
-        console.log('[CCoding] 手动刷新统一视图')
-        refreshAllData()
+      // 新视图刷新命令
+      vscode.commands.registerCommand('CCoding.refreshCurrentFileNav', () => {
+        console.log('[CCoding] 手动刷新当前文件导航')
+        refreshCurrentFileNav()
       }),
 
-      vscode.commands.registerCommand('CCoding.clearSearch', () => {
-        // 清除WebView搜索
-        unifiedWebViewProvider.clearSearch()
+      vscode.commands.registerCommand('CCoding.refreshGlobalBookmarks', () => {
+        console.log('[CCoding] 手动刷新全局书签')
+        globalBookmarksProvider.refresh()
+      }),
+
+      // 全局书签搜索命令
+      vscode.commands.registerCommand('CCoding.searchGlobalBookmarks', async () => {
+        const query = await vscode.window.showInputBox({
+          prompt: '搜索全局书签',
+          placeHolder: '输入关键词搜索书签标签或文件路径...',
+        })
+        if (query !== undefined) {
+          globalBookmarksProvider.search(query)
+        }
+      }),
+
+      vscode.commands.registerCommand('CCoding.clearGlobalBookmarksSearch', () => {
+        globalBookmarksProvider.clearSearch()
+        vscode.window.showInformationMessage('已清除书签搜索条件')
+      }),
+
+      vscode.commands.registerCommand('CCoding.changeGlobalBookmarksGroupBy', async () => {
+        const groupOptions = [
+          { label: '📁 按文件分组', description: '按文件路径分组显示', value: 'file' },
+          { label: '🏷️ 按类型分组', description: '按书签类型分组显示', value: 'type' },
+          { label: '🕐 按时间分组', description: '按创建时间分组显示', value: 'time' },
+        ]
+
+        const selected = await vscode.window.showQuickPick(groupOptions, {
+          placeHolder: '选择分组方式',
+          matchOnDescription: true,
+        })
+
+        if (selected) {
+          globalBookmarksProvider.setGroupBy(selected.value as 'file' | 'type' | 'time')
+          vscode.window.showInformationMessage(`已切换到${selected.label}`)
+        }
+      }),
+
+      vscode.commands.registerCommand('CCoding.refreshGlobalTodos', () => {
+        console.log('[CCoding] 手动刷新全局待办')
+        globalTodosProvider.refresh()
+      }),
+
+      // 全局待办事项搜索命令
+      vscode.commands.registerCommand('CCoding.searchGlobalTodos', async () => {
+        const query = await vscode.window.showInputBox({
+          prompt: '搜索全局待办事项',
+          placeHolder: '输入关键词搜索 TODO、FIXME、NOTE 等...',
+        })
+        if (query !== undefined) {
+          globalTodosProvider.search(query)
+        }
+      }),
+
+      vscode.commands.registerCommand('CCoding.clearGlobalTodosSearch', () => {
+        globalTodosProvider.clearSearch()
+        vscode.window.showInformationMessage('已清除搜索条件')
+      }),
+
+      vscode.commands.registerCommand('CCoding.changeGlobalTodosGroupBy', async () => {
+        const groupOptions = [
+          { label: '📁 按文件分组', description: '按文件路径分组显示', value: 'file' },
+          { label: '🏷️ 按类型分组', description: '按 TODO 类型分组显示', value: 'type' },
+          { label: '🎯 按优先级分组', description: '按优先级分组显示', value: 'priority' },
+        ]
+
+        const selected = await vscode.window.showQuickPick(groupOptions, {
+          placeHolder: '选择分组方式',
+          matchOnDescription: true,
+        })
+
+        if (selected) {
+          globalTodosProvider.setGroupBy(selected.value as 'file' | 'type' | 'priority')
+          vscode.window.showInformationMessage(`已切换到${selected.label}`)
+        }
+      }),
+
+      vscode.commands.registerCommand('CCoding.refreshQuickAccess', () => {
+        console.log('[CCoding] 手动刷新快速访问')
+        quickAccessProvider.refresh()
       }),
 
       vscode.commands.registerCommand('CCoding.repairData', async () => {
@@ -223,10 +348,9 @@ export function activate(context: vscode.ExtensionContext) {
           try {
             // 强制重新加载并修复数据
             const bookmarkFixedCount = await repairBookmarkData(context, bookmarkProvider)
-            const pinnedSymbolFixedCount = await repairPinnedSymbolData(context, pinnedSymbolProvider)
 
             vscode.window.showInformationMessage(
-              `数据修复完成！修复了 ${bookmarkFixedCount} 个书签数据，${pinnedSymbolFixedCount} 个置顶符号数据。`,
+              `数据修复完成！修复了 ${bookmarkFixedCount} 个书签数据。`,
             )
           }
           catch (error) {
@@ -237,8 +361,8 @@ export function activate(context: vscode.ExtensionContext) {
 
       // 事件监听器
       vscode.window.onDidChangeActiveTextEditor(() => {
-        console.log('[CCoding] 编辑器切换，刷新统一视图')
-        refreshAllData()
+        console.log('[CCoding] 编辑器切换，刷新当前文件导航')
+        refreshCurrentFileNav()
       }),
 
       // 文档变更监听（防抖处理）
@@ -252,14 +376,17 @@ export function activate(context: vscode.ExtensionContext) {
           clearTimeout(documentChangeTimeout)
         }
         documentChangeTimeout = setTimeout(() => {
-          console.log('[CCoding] 文档变更，刷新统一视图')
-          refreshAllData()
-        }, 1000)
+          console.log('[CCoding] 文档变更，刷新当前文件导航和全局待办')
+          refreshCurrentFileNav()
+          globalTodosProvider.refresh()
+        }, 500) // 从1000ms减少到500ms，提升响应速度
       }),
 
       vscode.workspace.onDidSaveTextDocument(() => {
-        console.log('[CCoding] 文档保存，刷新统一视图')
-        refreshAllData()
+        console.log('[CCoding] 文档保存，刷新相关视图')
+        refreshCurrentFileNav()
+        globalTodosProvider.refresh()
+        globalBookmarksProvider.refresh()
       }),
     ]
 
@@ -379,56 +506,4 @@ async function repairBookmarkData(context: vscode.ExtensionContext, bookmarkProv
   return originalCount - validBookmarks.length
 }
 
-/**
- * 修复置顶符号数据
- * @param context 扩展上下文
- * @param pinnedSymbolProvider 置顶符号Provider
- * @returns 修复的数据条数
- */
-async function repairPinnedSymbolData(context: vscode.ExtensionContext, pinnedSymbolProvider: PinnedSymbolProvider): Promise<number> {
-  const saved = context.globalState.get<any[]>('CCoding.pinnedSymbols', [])
-  const originalCount = saved.length
-
-  // 过滤出有效的置顶符号数据
-  const validPinnedSymbols = saved.filter((symbol) => {
-    if (!symbol || typeof symbol !== 'object') {
-      return false
-    }
-
-    // 检查必需的属性
-    if (!symbol.id || !symbol.name || typeof symbol.kind !== 'number') {
-      return false
-    }
-
-    // 检查 URI
-    if (!symbol.uri) {
-      return false
-    }
-
-    // 检查 range 对象的完整性
-    if (!symbol.range
-      || !symbol.range.start
-      || !symbol.range.end
-      || typeof symbol.range.start.line !== 'number'
-      || typeof symbol.range.start.character !== 'number'
-      || typeof symbol.range.end.line !== 'number'
-      || typeof symbol.range.end.character !== 'number') {
-      return false
-    }
-
-    // 检查时间戳
-    if (!symbol.timestamp || typeof symbol.timestamp !== 'number') {
-      return false
-    }
-
-    return true
-  })
-
-  // 保存修复后的数据
-  await context.globalState.update('CCoding.pinnedSymbols', validPinnedSymbols)
-
-  // 刷新置顶符号Provider
-  pinnedSymbolProvider.refresh()
-
-  return originalCount - validPinnedSymbols.length
-}
+// Removed repairPinnedSymbolData function

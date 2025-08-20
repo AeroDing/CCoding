@@ -23,6 +23,7 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
   private searchQuery: string = ''
   private searchScope: 'current' | 'all' = 'current'
   private _disposables: vscode.Disposable[] = []
+  private decorationUpdateTimeout: NodeJS.Timeout | undefined
 
   constructor() {
     this.initDecorationTypes()
@@ -91,8 +92,12 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
       clearTimeout(this.scanTimeout)
     }
 
+    // 记录性能统计
+    const refreshStartTime = performance.now()
+
     // 增加防抖延时到500ms，减少CPU占用
     this.scanTimeout = setTimeout(() => {
+      console.log(`[CCoding] TODO刷新防抖延迟: ${(performance.now() - refreshStartTime).toFixed(2)}ms`)
       this.scanForTodos()
     }, 500)
   }
@@ -222,6 +227,7 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
       return
     }
 
+    const scanStartTime = performance.now()
     console.log('[CCoding] 开始TODO扫描...')
     this.isScanning = true
     this.todos = []
@@ -252,7 +258,9 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
       vscode.commands.executeCommand('setContext', 'CCoding.hasTodos', this.todos.length > 0)
       this._onDidChangeTreeData.fire()
       this.updateDecorations()
-      console.log(`[CCoding] TODO扫描完成，找到 ${this.todos.length} 个待办项`)
+
+      const scanDuration = (performance.now() - scanStartTime).toFixed(2)
+      console.log(`[CCoding] TODO扫描完成，找到 ${this.todos.length} 个待办项，耗时 ${scanDuration}ms`)
     }
     catch (error) {
       console.error('[CCoding] TODO扫描错误:', error)
@@ -464,6 +472,31 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
       }
     })
 
+    // 监听文档内容变化，实时更新装饰器
+    const documentChangeDisposable = vscode.workspace.onDidChangeTextDocument((event) => {
+      if (event.reason === vscode.TextDocumentChangeReason.Undo
+        || event.reason === vscode.TextDocumentChangeReason.Redo) {
+        return
+      }
+
+      const activeEditor = vscode.window.activeTextEditor
+      if (!activeEditor || activeEditor.document !== event.document) {
+        return
+      }
+
+      console.log('[CCoding] 文档内容变化，实时更新TODO装饰器')
+
+      // 清除之前的装饰器更新计时器
+      if (this.decorationUpdateTimeout) {
+        clearTimeout(this.decorationUpdateTimeout)
+      }
+
+      // 对于文档变化，使用较短的防抖时间（100ms）进行装饰器更新
+      this.decorationUpdateTimeout = setTimeout(() => {
+        this.handleDocumentChangeForDecorations(event)
+      }, 100)
+    })
+
     // 监听工作区打开事件，确保插件激活后能正确初始化
     const workspaceChangeDisposable = vscode.workspace.onDidChangeWorkspaceFolders(() => {
       console.log('[CCoding] 工作区变更，重新扫描TODO')
@@ -471,7 +504,93 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
     })
 
     // 确保在dispose时清理事件监听器
-    this._disposables = [editorChangeDisposable, workspaceChangeDisposable]
+    this._disposables = [editorChangeDisposable, documentChangeDisposable, workspaceChangeDisposable]
+  }
+
+  /**
+   * 处理文档变化以实时更新装饰器
+   * @param event 文档变化事件
+   */
+  private handleDocumentChangeForDecorations(event: vscode.TextDocumentChangeEvent): void {
+    const editor = vscode.window.activeTextEditor
+    if (!editor || editor.document !== event.document) {
+      return
+    }
+
+    console.log(`[CCoding] 处理文档变化，影响 ${event.contentChanges.length} 个区域`)
+
+    // 获取变化的行范围
+    const changedLines = new Set<number>()
+    event.contentChanges.forEach((change) => {
+      const startLine = change.range.start.line
+      const endLine = change.range.end.line
+
+      // 如果是插入新行或删除行，需要扫描更大范围
+      const linesToCheck = Math.max(5, change.text.split('\n').length)
+
+      for (let i = Math.max(0, startLine - 1); i <= Math.min(editor.document.lineCount - 1, endLine + linesToCheck); i++) {
+        changedLines.add(i)
+      }
+    })
+
+    // 增量扫描变化的行
+    this.scanChangedLines(editor.document, Array.from(changedLines))
+
+    // 更新装饰器
+    this.updateDecorations()
+  }
+
+  /**
+   * 增量扫描指定行的TODO项
+   * @param document 文档对象
+   * @param lineNumbers 需要扫描的行号数组
+   */
+  private scanChangedLines(document: vscode.TextDocument, lineNumbers: number[]): void {
+    const filePath = vscode.workspace.asRelativePath(document.uri)
+    const currentDocTodos = this.currentDocumentTodos.get(filePath) || []
+
+    // 移除变化行的旧TODO项
+    const unchangedTodos = currentDocTodos.filter(todo => !lineNumbers.includes(todo.line))
+
+    // 扫描变化的行，查找新的TODO项
+    const newTodos: TodoItem[] = []
+    lineNumbers.forEach((lineNumber) => {
+      if (lineNumber >= 0 && lineNumber < document.lineCount) {
+        const line = document.lineAt(lineNumber)
+        const lineText = line.text
+
+        const regex = /^\s*(?:\/\/|\/\*|\*|<!--|#)\s*(TODO|FIXME|NOTE|HACK|BUG)(?:\(([^)]+)\))?:?\s*(.+)/gi
+        let match = regex.exec(lineText)
+
+        while (match !== null) {
+          const [, type, _author, text] = match
+          const todoItem: TodoItem = {
+            text: text.trim(),
+            file: filePath,
+            line: lineNumber,
+            column: match.index,
+            type: type.toUpperCase() as TodoItem['type'],
+          }
+          newTodos.push(todoItem)
+          match = regex.exec(lineText)
+        }
+      }
+    })
+
+    // 合并未变化的TODO和新扫描的TODO
+    const updatedTodos = [...unchangedTodos, ...newTodos]
+    this.currentDocumentTodos.set(filePath, updatedTodos)
+
+    // 更新全局TODO列表中的当前文档部分
+    this.todos = this.todos.filter(todo => todo.file !== filePath)
+    this.todos.push(...updatedTodos)
+
+    console.log(`[CCoding] 增量扫描完成，行 ${lineNumbers.join(',')}, 发现 ${newTodos.length} 个TODO项`)
+
+    // 刷新树视图（只有在当前标签页为current时才需要）
+    if (this.currentTab === 'current') {
+      this._onDidChangeTreeData.fire()
+    }
   }
 
   private updateDecorations(): void {
@@ -479,13 +598,22 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
     if (!editor) {
       return
     }
+
     const document = editor.document
     const todoDecorations: Map<string, vscode.DecorationOptions[]> = new Map()
     const currentFileTodos = this.todos.filter(todo =>
       vscode.workspace.asRelativePath(document.uri) === todo.file,
     )
 
+    console.log(`[CCoding] 更新装饰器，当前文件有 ${currentFileTodos.length} 个TODO项`)
+
     currentFileTodos.forEach((todo) => {
+      // 验证行号是否仍然有效（防止文档变化后行号失效）
+      if (todo.line >= document.lineCount) {
+        console.log(`[CCoding] 跳过无效行号 ${todo.line}，文档只有 ${document.lineCount} 行`)
+        return
+      }
+
       const line = document.lineAt(todo.line)
       const lineText = line.text
 
@@ -513,6 +641,9 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
         }
         todoDecorations.get(todo.type)!.push(decoration)
       }
+      else {
+        console.log(`[CCoding] 在行 ${todo.line} 未找到匹配的TODO项: ${todo.text}`)
+      }
     })
 
     // 应用装饰
@@ -520,6 +651,8 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
       const decorations = todoDecorations.get(type) || []
       editor.setDecorations(decorationType, decorations)
     })
+
+    console.log(`[CCoding] 装饰器更新完成，应用了 ${Array.from(todoDecorations.values()).reduce((sum, arr) => sum + arr.length, 0)} 个装饰`)
   }
 
   dispose(): void {
@@ -530,6 +663,12 @@ export class TodoProvider implements vscode.TreeDataProvider<TodoTreeItem>, vsco
     if (this.scanTimeout) {
       clearTimeout(this.scanTimeout)
       this.scanTimeout = undefined
+    }
+
+    // 清理装饰器更新计时器
+    if (this.decorationUpdateTimeout) {
+      clearTimeout(this.decorationUpdateTimeout)
+      this.decorationUpdateTimeout = undefined
     }
 
     // 清理装饰器

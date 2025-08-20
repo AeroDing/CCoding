@@ -8,7 +8,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'CCoding.unifiedView'
   private _view?: vscode.WebviewView
   private currentFilter: FilterType = 'all'
-  private stats = { total: 0, symbols: 0, bookmarks: 0, todos: 0, pinned: 0 }
+  private stats = { total: 0, symbols: 0, bookmarks: 0, todos: 0 } // Removed pinned
   private items: UnifiedItem[] = []
   private searchQuery = ''
 
@@ -100,7 +100,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
       symbols: stats.symbols || 0,
       bookmarks: stats.bookmarks || 0,
       todos: stats.todos || 0,
-      pinned: stats.pinned || 0,
+      // pinned: 0, // Removed
     }
 
     // 如果WebView还没准备好，延迟更新
@@ -158,11 +158,11 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
     // 应用类型过滤
     if (this.currentFilter !== 'all') {
       filteredItems = filteredItems.filter(item =>
-        item.type === this.currentFilter || (this.currentFilter === 'pinned' && item.isPinned),
+        item.type === this.currentFilter, // Removed pinned logic
       )
     }
 
-    // 排序：置顶项在前，然后按行号排序
+    // 移除置顶项的排序逻辑
     filteredItems.sort((a, b) => {
       if (a.isPinned !== b.isPinned) {
         return a.isPinned ? -1 : 1
@@ -334,8 +334,53 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             background-color: var(--vscode-list-hoverBackground);
         }
         
+        /* 移除置顶项样式
         .item.pinned {
             background-color: var(--vscode-list-inactiveSelectionBackground);
+        }
+        */
+        
+        /* 分组样式 */
+        .group-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            margin-bottom: 2px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            background-color: var(--vscode-list-hoverBackground);
+            border: 1px solid var(--vscode-widget-border);
+        }
+        
+        .group-item:hover {
+            background-color: var(--vscode-list-activeSelectionBackground);
+        }
+        
+        .group-item .expand-icon {
+            margin-right: 6px;
+            font-size: 10px;
+            transition: transform 0.2s;
+        }
+        
+        .group-item.expanded .expand-icon {
+            transform: rotate(90deg);
+        }
+        
+        .group-children {
+            margin-left: 16px;
+            border-left: 1px solid var(--vscode-widget-border);
+            padding-left: 8px;
+            margin-bottom: 4px;
+        }
+        
+        .group-children.collapsed {
+            display: none;
+        }
+        
+        .child-item {
+            padding: 3px 8px;
+            margin-bottom: 1px;
         }
         
         .item-icon {
@@ -449,9 +494,6 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             <button class="filter-button" data-filter="todo" id="filterTodo">
                 待办 <span class="count" id="countTodos">0</span>
             </button>
-            <button class="filter-button" data-filter="pinned" id="filterPinned">
-                <span class="pinned-indicator">📌</span> <span class="count" id="countPinned">0</span>
-            </button>
         </div>
     </div>
     
@@ -557,14 +599,14 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             document.getElementById('countSymbols').textContent = stats.symbols || 0;
             document.getElementById('countBookmarks').textContent = stats.bookmarks || 0;
             document.getElementById('countTodos').textContent = stats.todos || 0;
-            document.getElementById('countPinned').textContent = stats.pinned || 0;
+            // document.getElementById('countPinned').textContent = stats.pinned || 0; // Removed
             
             // 更新筛选按钮状态
             const buttons = {
                 'symbol': { element: document.getElementById('filterSymbol'), count: stats.symbols || 0 },
                 'bookmark': { element: document.getElementById('filterBookmark'), count: stats.bookmarks || 0 },
                 'todo': { element: document.getElementById('filterTodo'), count: stats.todos || 0 },
-                'pinned': { element: document.getElementById('filterPinned'), count: stats.pinned || 0 }
+                // 'pinned': { element: document.getElementById('filterPinned'), count: stats.pinned || 0 } // Removed
             };
             
             Object.keys(buttons).forEach(type => {
@@ -591,7 +633,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             console.log('[WebView] Creating HTML for', items.length, 'items');
             try {
                 const htmlContent = items.map(item => {
-                    console.log('[WebView] Processing item:', item.label, 'type:', item.type);
+                    console.log('[WebView] Processing item:', item.label, 'type:', item.type, 'isGroup:', item.isGroup);
                     return createItemHtml(item);
                 }).join('');
                 
@@ -600,33 +642,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                 console.log('[WebView] HTML content set successfully');
                 
                 // 绑定点击事件
-                const itemElements = itemsContainer.querySelectorAll('.item');
-                console.log('[WebView] Found', itemElements.length, 'item elements for event binding');
-                
-                itemElements.forEach(itemEl => {
-                    const itemId = itemEl.getAttribute('data-item-id');
-                    
-                    itemEl.addEventListener('click', (e) => {
-                        if (e.target.classList.contains('action-button')) return;
-                        console.log('[WebView] Item clicked:', itemId);
-                        vscode.postMessage({
-                            type: 'itemClicked',
-                            itemId: itemId
-                        });
-                    });
-                    
-                    const pinButton = itemEl.querySelector('.pin-button');
-                    if (pinButton) {
-                        pinButton.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            console.log('[WebView] Pin button clicked:', itemId);
-                            vscode.postMessage({
-                                type: 'pinToggled',
-                                itemId: itemId
-                            });
-                        });
-                    }
-                });
+                bindItemEvents();
                 
                 console.log('[WebView] Event binding completed');
             } catch (error) {
@@ -635,34 +651,156 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             }
         }
         
+        // 绑定项目事件
+        function bindItemEvents() {
+            // 绑定分组展开/折叠事件
+            const groupItems = itemsContainer.querySelectorAll('.group-item');
+            groupItems.forEach(groupEl => {
+                const groupId = groupEl.getAttribute('data-group-id');
+                
+                groupEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleGroup(groupId);
+                });
+            });
+            
+            // 绑定子项点击事件
+            const itemElements = itemsContainer.querySelectorAll('.item:not(.group-item)');
+            console.log('[WebView] Found', itemElements.length, 'item elements for event binding');
+            
+            itemElements.forEach(itemEl => {
+                const itemId = itemEl.getAttribute('data-item-id');
+                
+                itemEl.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('action-button')) return;
+                    console.log('[WebView] Item clicked:', itemId);
+                    vscode.postMessage({
+                        type: 'itemClicked',
+                        itemId: itemId
+                    });
+                });
+                
+                // 移除置顶按钮事件监听
+                // const pinButton = itemEl.querySelector('.pin-button');
+                // if (pinButton) {
+                //     pinButton.addEventListener('click', (e) => {
+                //         e.stopPropagation();
+                //         console.log('[WebView] Pin button clicked:', itemId);
+                //         vscode.postMessage({
+                //             type: 'pinToggled',
+                //             itemId: itemId
+                //         });
+                //     });
+                // }
+            });
+        }
+        
+        // 切换分组展开/折叠状态
+        function toggleGroup(groupId) {
+            const groupElement = document.querySelector(\`[data-group-id="\${groupId}"]\`);
+            const childrenElement = document.querySelector(\`[data-group-children="\${groupId}"]\`);
+            
+            if (groupElement && childrenElement) {
+                const isExpanded = !childrenElement.classList.contains('collapsed');
+                
+                if (isExpanded) {
+                    // 折叠
+                    childrenElement.classList.add('collapsed');
+                    groupElement.classList.remove('expanded');
+                } else {
+                    // 展开
+                    childrenElement.classList.remove('collapsed');
+                    groupElement.classList.add('expanded');
+                }
+                
+                console.log('[WebView] Toggled group', groupId, 'expanded:', !isExpanded);
+            }
+        }
+        
         // 创建项目HTML
         function createItemHtml(item) {
+            // 如果是分组项目
+            if (item.isGroup && item.children) {
+                return createGroupHtml(item);
+            }
+            
+            // 普通项目
             const iconClass = getIconClass(item);
-            const pinButton = item.isPinned ? 
-                '<button class="action-button pin-button" title="取消置顶">📌</button>' :
-                '<button class="action-button pin-button" title="置顶">📌</button>';
+            // 移除置顶按钮
+            // const pinButton = item.isPinned ? 
+            //     '<button class="action-button pin-button" title="取消置顶">📌</button>' :
+            //     '<button class="action-button pin-button" title="置顶">📌</button>';
             
             return \`
-                <div class="item \${item.isPinned ? 'pinned' : ''}" data-item-id="\${item.id}">
+                <div class="item" data-item-id="\${item.id}"> <!-- Removed pinned class -->
                     <div class="item-icon \${iconClass}">
                         \${getIconSymbol(item)}
                     </div>
                     <div class="item-content">
                         <div class="item-label">\${escapeHtml(item.label)}</div>
                         <div class="item-description">
-                            \${item.description ? escapeHtml(item.description) : ''} · L:\${item.location.line + 1}
+                            \${item.chineseType || item.description || ''} · L:\${item.location.line + 1}
                         </div>
                     </div>
                     <div class="item-actions">
-                        \${pinButton}
+                        <!-- ${pinButton} Removed -->
                     </div>
                 </div>
             \`;
         }
         
+        // 创建分组HTML
+        function createGroupHtml(group) {
+            const groupId = group.id;
+            const isExpanded = group.isExpanded !== false; // 默认展开
+            const childrenHtml = group.children ? group.children.map(child => \`
+                <div class="child-item">
+                    \${createItemHtml(child)}
+                </div>
+            \`).join('') : '';
+            
+            return \`
+                <div class="group-item \${isExpanded ? 'expanded' : ''}" data-group-id="\${groupId}">
+                    <span class="expand-icon">▶</span>
+                    <div class="item-icon">
+                        \${getGroupIconSymbol(group.groupName)}
+                    </div>
+                    <div class="item-content">
+                        <div class="item-label">\${escapeHtml(group.label)}</div>
+                        <div class="item-description">\${group.description || ''}</div>
+                    </div>
+                </div>
+                <div class="group-children \${isExpanded ? '' : 'collapsed'}" data-group-children="\${groupId}">
+                    \${childrenHtml}
+                </div>
+            \`;
+        }
+        
+        // 获取分组图标符号
+        function getGroupIconSymbol(groupName) {
+            const iconMap = {
+                '🎨 模板结构': '🎨',
+                '🏛️ 类定义': '🏛️',
+                '⚡ 函数方法': '⚡',
+                '📊 变量常量': '📊',
+                '🔧 其他': '🔧',
+                '📦 响应式数据': '📦',
+                '⚙️ 计算属性': '⚙️',
+                '⚡ 方法函数': '⚡',
+                '📨 组件属性': '📨',
+                '🔄 生命周期': '🔄',
+                '🔧 Setup函数': '🔧',
+                '🪝 React Hooks': '🪝',
+                '⚡ 事件处理': '⚡',
+                '📋 组件属性': '📋',
+            };
+            return iconMap[groupName] || '📁';
+        }
+        
         // 获取图标类名
         function getIconClass(item) {
-            if (item.isPinned) return 'icon-pinned';
+            // 移除置顶判断
+            // if (item.isPinned) return 'icon-pinned';
             
             switch (item.type) {
                 case 'symbol':

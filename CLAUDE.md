@@ -46,9 +46,7 @@ npm run vscode:prepublish  # 发布前准备（相当于 compile）
 - `FunctionListProvider` - 解析并显示当前文件函数列表
 - `BookmarkProvider` - 管理代码书签，支持持久化存储
 - `TodoProvider` - 扫描 TODO/FIXME/NOTE 注释
-- `PinnedSymbolProvider` - 管理置顶符号
 - `TimelineProvider` - 跟踪文件操作历史
-- `KeywordSearchProvider` - 全项目关键词搜索
 
 #### 3. 解析器模式 (parsers/)
 
@@ -76,6 +74,24 @@ npm run vscode:prepublish  # 发布前准备（相当于 compile）
 
 ### 开发注意事项
 
+#### 代码清理原则
+
+- 删除功能时要彻底清理，不要留下多余的注释说明已删除的内容
+- 删除的代码就彻底删除，不需要添加"已移除XX"的注释
+- 保持代码简洁，避免无意义的历史说明
+
+#### 模块系统注意事项
+
+- VSCode 扩展必须使用 CommonJS 格式，不能在 package.json 中设置 `"type": "module"`
+- ESLint 配置文件可以使用 .mjs 扩展名来明确标识为 ES 模块
+- TypeScript 源码会被编译成 CommonJS 格式输出到 out/ 目录
+
+#### VSCode API 注意事项
+
+- ThemeIcon 的 color 属性是只读的，需要在构造函数中传入 `new vscode.ThemeIcon(iconId, new vscode.ThemeColor(color))`
+- StatusBarItem 的 color 属性需要使用 `new vscode.ThemeColor(colorString)` 包装
+- 避免直接赋值只读属性，应该在创建对象时传入相关参数
+
 #### TypeScript 配置
 
 - 目标版本：ES2020
@@ -89,7 +105,7 @@ npm run vscode:prepublish  # 发布前准备（相当于 compile）
 
 #### 状态管理
 
-- 书签和置顶符号使用 VSCode ExtensionContext 进行持久化
+- 书签使用 VSCode ExtensionContext 进行持久化
 - 其他状态基于当前活动编辑器动态计算
 
 #### 扩展点集成
