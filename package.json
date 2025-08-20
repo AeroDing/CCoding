@@ -2,8 +2,8 @@
   "publisher": "AeroDing",
   "name": "CCoding",
   "displayName": "CCoding",
-  "version": "0.2.9",
-  "description": "A comprehensive coding assistant with function lists, bookmarks, quick navigation, symbol pinning, todo lists, timeline, and keyword search for development",
+  "version": "0.2.10",
+  "description": "A comprehensive coding assistant with function lists, bookmarks, quick navigation, todo lists, timeline, and keyword search for development",
   "author": "Pxin Ding",
   "license": "MIT",
   "repository": {
@@ -52,11 +52,6 @@
         "category": "CCoding"
       },
       {
-        "command": "CCoding.pinSymbol",
-        "title": "Pin Symbol",
-        "category": "CCoding"
-      },
-      {
         "command": "CCoding.showTodos",
         "title": "Show Todo List",
         "category": "CCoding"
@@ -64,11 +59,6 @@
       {
         "command": "CCoding.showTimeline",
         "title": "Show Timeline",
-        "category": "CCoding"
-      },
-      {
-        "command": "CCoding.searchKeywords",
-        "title": "Search Keywords",
         "category": "CCoding"
       },
       {
@@ -92,33 +82,127 @@
         "category": "CCoding"
       },
       {
-        "command": "CCoding.pinSymbolFromEditor",
-        "title": "置顶符号",
-        "category": "CCoding"
-      },
-      {
-        "command": "CCoding.unpinSymbol",
-        "title": "移除置顶",
-        "category": "CCoding"
-      },
-      {
-        "command": "CCoding.clearAllPinnedSymbols",
-        "title": "清空所有置顶符号",
-        "category": "CCoding",
-        "icon": "$(clear-all)"
-      },
-      {
         "command": "CCoding.repairData",
         "title": "修复数据",
         "category": "CCoding"
       },
       {
-        "command": "CCoding.refreshUnifiedView",
-        "title": "刷新列表",
+        "command": "CCoding.refreshCurrentFileNav",
+        "title": "刷新当前文件导航",
+        "category": "CCoding",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "CCoding.refreshGlobalBookmarks",
+        "title": "刷新全局书签",
+        "category": "CCoding",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "CCoding.refreshGlobalTodos",
+        "title": "刷新全局待办",
+        "category": "CCoding",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "CCoding.unifiedSearch",
+        "title": "统一搜索",
+        "category": "CCoding",
+        "icon": "$(search)"
+      },
+      {
+        "command": "CCoding.selectSearchType",
+        "title": "选择搜索类型",
+        "category": "CCoding",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "CCoding.searchGlobalTodos",
+        "title": "搜索全局待办事项",
+        "category": "CCoding",
+        "icon": "$(search)"
+      },
+      {
+        "command": "CCoding.clearGlobalTodosSearch",
+        "title": "清除搜索",
+        "category": "CCoding",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "CCoding.changeGlobalTodosGroupBy",
+        "title": "切换分组方式",
+        "category": "CCoding",
+        "icon": "$(group-by-ref-type)"
+      },
+      {
+        "command": "CCoding.searchGlobalBookmarks",
+        "title": "搜索全局书签",
+        "category": "CCoding",
+        "icon": "$(search)"
+      },
+      {
+        "command": "CCoding.clearGlobalBookmarksSearch",
+        "title": "清除书签搜索",
+        "category": "CCoding",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "CCoding.changeGlobalBookmarksGroupBy",
+        "title": "切换书签分组方式",
+        "category": "CCoding",
+        "icon": "$(group-by-ref-type)"
+      },
+      {
+        "command": "CCoding.refreshQuickAccess",
+        "title": "刷新快速访问",
         "category": "CCoding",
         "icon": "$(refresh)"
       }
     ],
+    "configuration": {
+      "title": "CCoding 搜索配置",
+      "properties": {
+        "CCoding.search.excludePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/.DS_Store",
+            "**/thumbs.db",
+            "**/vendor/**",
+            "**/cache/**",
+            "**/logs/**"
+          ],
+          "description": "搜索时排除的目录和文件模式（glob patterns）",
+          "scope": "window"
+        },
+        "CCoding.search.maxResults": {
+          "type": "number",
+          "default": 100,
+          "minimum": 10,
+          "maximum": 1000,
+          "description": "搜索结果的最大数量",
+          "scope": "window"
+        },
+        "CCoding.search.caseSensitive": {
+          "type": "boolean",
+          "default": false,
+          "description": "搜索时是否区分大小写",
+          "scope": "window"
+        },
+        "CCoding.todos.enabledTypes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["TODO", "FIXME", "NOTE", "BUG", "HACK"]
+          },
+          "default": ["TODO", "FIXME", "NOTE", "BUG", "HACK"],
+          "description": "启用的 TODO 类型",
+          "scope": "window"
+        }
+      }
+    },
     "keybindings": [
       {
         "command": "CCoding.showFunctionList",
@@ -134,14 +218,37 @@
         "command": "CCoding.quickJump",
         "key": "ctrl+shift+j",
         "mac": "cmd+shift+j"
+      },
+      {
+        "command": "CCoding.unifiedSearch",
+        "key": "ctrl+shift+s",
+        "mac": "cmd+shift+s"
       }
     ],
     "views": {
       "CCoding": [
         {
-          "id": "CCoding.unifiedView",
-          "name": "代码导航",
+          "id": "CCoding.currentFileNav",
+          "name": "🏠 当前文件导航",
           "type": "webview",
+          "when": "true",
+          "visibility": "visible"
+        },
+        {
+          "id": "CCoding.globalBookmarks",
+          "name": "📚 全局书签管理",
+          "when": "true",
+          "visibility": "visible"
+        },
+        {
+          "id": "CCoding.globalTodos",
+          "name": "📋 全局待办事项",
+          "when": "true",
+          "visibility": "visible"
+        },
+        {
+          "id": "CCoding.quickAccess",
+          "name": "⚡ 快速访问面板",
           "when": "true",
           "visibility": "visible"
         }
@@ -174,10 +281,6 @@
         {
           "command": "CCoding.addBookmarkFromEditor",
           "when": "editorTextFocus"
-        },
-        {
-          "command": "CCoding.pinSymbolFromEditor",
-          "when": "editorTextFocus"
         }
       ],
       "view/item/context": [
@@ -194,8 +297,48 @@
       ],
       "view/title": [
         {
-          "command": "CCoding.refreshUnifiedView",
-          "when": "view == CCoding.unifiedView",
+          "command": "CCoding.refreshCurrentFileNav",
+          "when": "view == CCoding.currentFileNav",
+          "group": "navigation"
+        },
+        {
+          "command": "CCoding.refreshGlobalBookmarks",
+          "when": "view == CCoding.globalBookmarks",
+          "group": "navigation"
+        },
+        {
+          "command": "CCoding.searchGlobalBookmarks",
+          "when": "view == CCoding.globalBookmarks",
+          "group": "navigation"
+        },
+        {
+          "command": "CCoding.changeGlobalBookmarksGroupBy",
+          "when": "view == CCoding.globalBookmarks",
+          "group": "navigation"
+        },
+        {
+          "command": "CCoding.refreshGlobalTodos",
+          "when": "view == CCoding.globalTodos",
+          "group": "navigation"
+        },
+        {
+          "command": "CCoding.searchGlobalTodos",
+          "when": "view == CCoding.globalTodos",
+          "group": "navigation"
+        },
+        {
+          "command": "CCoding.changeGlobalTodosGroupBy",
+          "when": "view == CCoding.globalTodos",
+          "group": "navigation"
+        },
+        {
+          "command": "CCoding.clearGlobalTodosSearch",
+          "when": "view == CCoding.globalTodos",
+          "group": "navigation"
+        },
+        {
+          "command": "CCoding.refreshQuickAccess",
+          "when": "view == CCoding.quickAccess",
           "group": "navigation"
         }
       ]
