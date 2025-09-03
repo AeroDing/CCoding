@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
-import { ReactParser } from '../parsers/reactParser'
-import { VueParser } from '../parsers/vueParser'
+import { ReactParser } from '../parsers/reactParser.js'
+import { VueParser } from '../parsers/vueParser.js'
 
 // 扩展的符号类型
 enum CustomSymbolKind {

@@ -1,14 +1,14 @@
 import type {
   FrontendSymbolInfo,
   QuickFilter,
-} from '../types/frontendSymbols'
+} from '../types/frontendSymbols.js'
 import * as vscode from 'vscode'
-import { FrontendSymbolDetector } from '../services/frontendSymbolDetector'
-import { SymbolGroupManager } from '../services/symbolGroupManager'
+import { FrontendSymbolDetector } from '../services/frontendSymbolDetector.js'
+import { SymbolGroupManager } from '../services/symbolGroupManager.js'
 import {
   FrameworkType,
   SymbolPriority,
-} from '../types/frontendSymbols'
+} from '../types/frontendSymbols.js'
 
 /**
  * 增强版函数列表提供器

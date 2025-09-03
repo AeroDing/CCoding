@@ -1,6 +1,6 @@
 import type * as vscode from 'vscode'
-import type { DataAdapter } from './dataAdapter'
-import type { UnifiedItem } from './unifiedListProvider'
+import type { DataAdapter } from './dataAdapter.js'
+import type { UnifiedItem } from './unifiedListProvider.js'
 
 /**
  * 智能导航面板 - 当前文件的一站式导航

@@ -1,5 +1,5 @@
 import type * as vscode from 'vscode'
-import type { FrameworkType } from './frontendSymbols'
+import type { FrameworkType } from './frontendSymbols.js'
 
 /**
  * 书签类型

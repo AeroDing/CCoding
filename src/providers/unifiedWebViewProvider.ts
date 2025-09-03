@@ -1,5 +1,5 @@
 import type * as vscode from 'vscode'
-import type { FilterType, UnifiedItem } from './unifiedListProvider'
+import type { FilterType, UnifiedItem } from './unifiedListProvider.js'
 
 /**
  * 统一WebView Provider - 整合搜索、筛选和列表显示

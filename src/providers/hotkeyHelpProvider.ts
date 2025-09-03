@@ -1,4 +1,4 @@
-import type { HotkeyManager } from '../services/hotkeyManager'
+import type { HotkeyManager } from '../services/hotkeyManager.js'
 import { Buffer } from 'node:buffer'
 import * as vscode from 'vscode'
 

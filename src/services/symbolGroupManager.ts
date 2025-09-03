@@ -2,13 +2,13 @@ import type {
   FrontendSymbolInfo,
   QuickFilter,
   SymbolGroupConfig,
-} from '../types/frontendSymbols'
+} from '../types/frontendSymbols.js'
 import * as vscode from 'vscode'
 import {
   FrameworkType,
   FrontendSymbolKind,
   SymbolPriority,
-} from '../types/frontendSymbols'
+} from '../types/frontendSymbols.js'
 
 /**
  * 符号分组管理器

@@ -1,14 +1,14 @@
 import type {
   BookmarkFilter,
   EnhancedBookmark,
-} from '../types/bookmarks'
+} from '../types/bookmarks.js'
 import * as vscode from 'vscode'
-import { EnhancedBookmarkManager } from '../services/enhancedBookmarkManager'
+import { EnhancedBookmarkManager } from '../services/enhancedBookmarkManager.js'
 import {
   BookmarkPriority,
   BookmarkType,
   BookmarkViewMode,
-} from '../types/bookmarks'
+} from '../types/bookmarks.js'
 
 /**
  * 增强书签提供器

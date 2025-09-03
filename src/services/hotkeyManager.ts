@@ -1,5 +1,5 @@
-import type { EnhancedBookmarkManager } from './enhancedBookmarkManager'
-import type { QuickAccessManager } from './quickAccessManager'
+import type { EnhancedBookmarkManager } from './enhancedBookmarkManager.js'
+import type { QuickAccessManager } from './quickAccessManager.js'
 import * as vscode from 'vscode'
 
 /**

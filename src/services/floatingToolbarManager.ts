@@ -1,5 +1,5 @@
-import type { QuickAccessManager } from '../services/quickAccessManager'
-import type { FloatingToolbarConfig } from '../types/quickAccess'
+import type { QuickAccessManager } from '../services/quickAccessManager.js'
+import type { FloatingToolbarConfig } from '../types/quickAccess.js'
 import * as vscode from 'vscode'
 
 /**

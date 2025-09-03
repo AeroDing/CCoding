@@ -5,15 +5,15 @@ import type {
   BookmarkStatistics,
   BookmarkUsageStats,
   EnhancedBookmark,
-} from '../types/bookmarks'
+} from '../types/bookmarks.js'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
 import {
   BookmarkPriority,
   BookmarkType,
   BookmarkViewMode,
-} from '../types/bookmarks'
-import { FrameworkType } from '../types/frontendSymbols'
+} from '../types/bookmarks.js'
+import { FrameworkType } from '../types/frontendSymbols.js'
 
 /**
  * 增强的书签管理器

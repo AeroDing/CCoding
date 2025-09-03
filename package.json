@@ -2,6 +2,7 @@
   "publisher": "AeroDing",
   "name": "CCoding",
   "displayName": "CCoding",
+  "type": "module",
   "version": "0.2.12",
   "description": "A comprehensive coding assistant with function lists, bookmarks, quick navigation, todo lists, timeline, and keyword search for development",
   "author": "Pxin Ding",
@@ -24,7 +25,7 @@
   "main": "./out/extension.js",
   "icon": "icon.png",
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.86.0"
   },
   "activationEvents": [
     "onStartupFinished"
@@ -367,8 +368,8 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.15.0",
-    "@types/node": "^16.18.126",
-    "@types/vscode": "^1.74.0",
+    "@types/node": "^18.19.0",
+    "@types/vscode": "^1.86.0",
     "@typescript-eslint/eslint-plugin": "^8.34.1",
     "@typescript-eslint/parser": "^8.34.1",
     "@vscode/vsce": "^2.29.1",

@@ -1,7 +1,7 @@
-import type { BookmarkProvider } from './bookmarkProvider'
-import type { FunctionListProvider } from './functionListProvider'
-import type { TodoProvider } from './todoProvider'
-import type { UnifiedItem } from './unifiedListProvider'
+import type { BookmarkProvider } from './bookmarkProvider.js'
+import type { FunctionListProvider } from './functionListProvider.js'
+import type { TodoProvider } from './todoProvider.js'
+import type { UnifiedItem } from './unifiedListProvider.js'
 import * as vscode from 'vscode'
 
 /**

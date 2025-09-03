@@ -1,5 +1,5 @@
-import type { HotkeyManager } from './hotkeyManager'
-import type { QuickAccessManager } from './quickAccessManager'
+import type { HotkeyManager } from './hotkeyManager.js'
+import type { QuickAccessManager } from './quickAccessManager.js'
 import * as vscode from 'vscode'
 
 /**

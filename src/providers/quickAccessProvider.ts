@@ -1,7 +1,7 @@
-import type { SearchResult as UnifiedSearchResult } from '../services/unifiedSearchService'
-import type { TimelineProvider } from './timelineProvider'
+import type { SearchResult as UnifiedSearchResult } from '../services/unifiedSearchService.js'
+import type { TimelineProvider } from './timelineProvider.js'
 import * as vscode from 'vscode'
-import { SearchType, UnifiedSearchService } from '../services/unifiedSearchService'
+import { SearchType, UnifiedSearchService } from '../services/unifiedSearchService.js'
 
 /**
  * 快速访问面板 Provider

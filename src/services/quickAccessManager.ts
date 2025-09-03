@@ -1,4 +1,4 @@
-import type { EnhancedFunctionListProvider } from '../providers/enhancedFunctionListProvider'
+import type { EnhancedFunctionListProvider } from '../providers/enhancedFunctionListProvider.js'
 import type {
   QuickAccessContext,
   QuickAccessEvent,
@@ -6,13 +6,13 @@ import type {
   QuickAccessItem,
   QuickAccessPanelConfig,
   QuickAccessStatistics,
-} from '../types/quickAccess'
-import type { EnhancedBookmarkManager } from './enhancedBookmarkManager'
+} from '../types/quickAccess.js'
+import type { EnhancedBookmarkManager } from './enhancedBookmarkManager.js'
 // import type { EnhancedPinnedSymbolManager } from './enhancedPinnedSymbolManager' // Removed
 import * as vscode from 'vscode'
 import {
   QuickAccessItemType,
-} from '../types/quickAccess'
+} from '../types/quickAccess.js'
 
 /**
  * 快速访问管理器

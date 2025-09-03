@@ -1,14 +1,14 @@
 import * as vscode from 'vscode'
-import { BookmarkProvider } from './providers/bookmarkProvider'
-import { CurrentFileNavProvider } from './providers/currentFileNavProvider'
-import { DataAdapter } from './providers/dataAdapter'
-import { FunctionListProvider } from './providers/functionListProvider'
-import { GlobalBookmarksProvider } from './providers/globalBookmarksProvider'
-import { GlobalTodosProvider } from './providers/globalTodosProvider'
-import { QuickAccessProvider } from './providers/quickAccessProvider'
-import { TimelineProvider } from './providers/timelineProvider'
-import { TodoProvider } from './providers/todoProvider'
-import { SearchType } from './services/unifiedSearchService'
+import { BookmarkProvider } from './providers/bookmarkProvider.js'
+import { CurrentFileNavProvider } from './providers/currentFileNavProvider.js'
+import { DataAdapter } from './providers/dataAdapter.js'
+import { FunctionListProvider } from './providers/functionListProvider.js'
+import { GlobalBookmarksProvider } from './providers/globalBookmarksProvider.js'
+import { GlobalTodosProvider } from './providers/globalTodosProvider.js'
+import { QuickAccessProvider } from './providers/quickAccessProvider.js'
+import { TimelineProvider } from './providers/timelineProvider.js'
+import { TodoProvider } from './providers/todoProvider.js'
+import { SearchType } from './services/unifiedSearchService.js'
 
 // 全局状态管理
 let documentChangeTimeout: NodeJS.Timeout | undefined
@@ -210,8 +210,6 @@ export function activate(context: vscode.ExtensionContext) {
         showQuickJumpPicker()
       }),
 
-      // Removed pinSymbol command
-
       vscode.commands.registerCommand('CCoding.showTodos', () => {
         todoProvider.forceRefresh()
       }),
@@ -227,12 +225,6 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand('CCoding.addBookmarkFromEditor', () => {
         bookmarkProvider.addBookmarkFromEditor()
       }),
-
-      // Removed pinSymbolFromEditor command
-
-      // Removed unpinSymbol command
-
-      // Removed clearAllPinnedSymbols command
 
       vscode.commands.registerCommand('CCoding.editBookmark', (item: any) => {
         const bookmarkId = item.bookmark?.id || (item.unifiedItem?.id.startsWith('bookmark-') ? item.unifiedItem.id.replace('bookmark-', '') : null)
@@ -505,5 +497,3 @@ async function repairBookmarkData(context: vscode.ExtensionContext, bookmarkProv
 
   return originalCount - validBookmarks.length
 }
-
-// Removed repairPinnedSymbolData function

@@ -3,13 +3,13 @@ import type {
   ReactSymbolInfo,
   SymbolContext,
   VueSymbolInfo,
-} from '../types/frontendSymbols'
+} from '../types/frontendSymbols.js'
 import * as vscode from 'vscode'
 import {
   FrameworkType,
   FrontendSymbolKind,
   SymbolPriority,
-} from '../types/frontendSymbols'
+} from '../types/frontendSymbols.js'
 
 /**
  * 前端符号检测器

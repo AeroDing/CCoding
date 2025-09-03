@@ -1,4 +1,4 @@
-import type { BookmarkProvider } from './bookmarkProvider'
+import type { BookmarkProvider } from './bookmarkProvider.js'
 import * as vscode from 'vscode'
 
 /**

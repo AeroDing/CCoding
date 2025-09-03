@@ -1,5 +1,5 @@
 import type * as vscode from 'vscode'
-import type { FilterType } from './unifiedListProvider'
+import type { FilterType } from './unifiedListProvider.js'
 
 /**
  * 统一控制面板Provider - 管理搜索和筛选功能

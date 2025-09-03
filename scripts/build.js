@@ -1,24 +1,20 @@
+import { rm } from 'node:fs/promises'
 import esbuild from 'esbuild'
-import { glob } from 'glob'
 
 async function build() {
   try {
-    // Get all TypeScript files in src directory
-    const entryPoints = await glob('src/**/*.ts', {
-      absolute: true,
-      ignore: ['**/*.d.ts'],
-    })
+    console.log('Cleaning output directory...')
+    await rm('out', { recursive: true, force: true })
 
-    console.log('Building with esbuild...')
-    console.log(`Found ${entryPoints.length} TypeScript files`)
-
+    console.log('Building ESM bundle with esbuild...')
     await esbuild.build({
-      entryPoints,
-      bundle: false,
-      outdir: 'out',
+      entryPoints: ['src/extension.ts'],
+      bundle: true,
+      outfile: 'out/extension.js',
+      external: ['vscode'],
       platform: 'node',
-      target: 'node16',
-      format: 'cjs',
+      target: 'node18',
+      format: 'esm',
       sourcemap: true,
       tsconfig: './tsconfig.json',
       logLevel: 'info',
