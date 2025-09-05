@@ -8,6 +8,14 @@
       "text": "若信息不足，先提出3-5个澄清问题再给最终消息。"
     }
   ],
+  "github.copilot.chat.reviewSelection.instructions": [
+    {
+      "file": ".github/review-checklist.md"
+    },
+    {
+      "text": "若代码评审信息不足，先提出3-5个澄清问题再给最终评审意见。"
+    }
+  ],
   "editor.insertSpaces": true,
   "editor.tabSize": 2,
   "editor.detectIndentation": false,
