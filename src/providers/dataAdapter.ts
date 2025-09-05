@@ -4,6 +4,30 @@ import type { TodoProvider } from './todoProvider.js'
 import type { UnifiedItem } from './unifiedListProvider.js'
 import * as vscode from 'vscode'
 
+// 精确的序列化书签类型（存储在 globalState 中）
+interface SerializedRange {
+  start: { line: number, character: number }
+  end: { line: number, character: number }
+}
+
+interface SerializedBookmark {
+  id: string
+  label: string
+  uri: string | vscode.Uri
+  range: SerializedRange | vscode.Range
+  timestamp: number
+  description?: string
+}
+
+interface ScannedTodo {
+  id: string
+  type: 'TODO' | 'FIXME' | 'NOTE' | 'BUG' | 'HACK'
+  text: string
+  uri: vscode.Uri
+  range: vscode.Range
+  timestamp: number
+}
+
 /**
  * 数据适配器 - 将现有Provider的数据转换为统一格式
  */
@@ -12,6 +36,7 @@ export class DataAdapter {
     private functionProvider: FunctionListProvider,
     private bookmarkProvider: BookmarkProvider,
     private todoProvider: TodoProvider,
+    private context: vscode.ExtensionContext,
   ) {}
 
   /**
@@ -61,6 +86,7 @@ export class DataAdapter {
 
       const result = bookmarks.map((bookmark) => {
         const uriObj = this.ensureUri(bookmark.uri)
+        const rangeObj = this.ensureRange(bookmark.range)
         return {
           id: `bookmark-${bookmark.id}`,
           type: 'bookmark' as const,
@@ -68,23 +94,23 @@ export class DataAdapter {
           description: this.truncateText(bookmark.description || '', 50),
           location: {
             file: this.getRelativePath(uriObj),
-            line: bookmark.range.start.line,
-            character: bookmark.range.start.character,
+            line: rangeObj.start.line,
+            character: rangeObj.start.character,
           },
           icon: 'bookmark',
           iconColor: 'charts.blue',
           isPinned: false,
           timestamp: bookmark.timestamp || Date.now(),
           uri: uriObj,
-          range: bookmark.range,
+          range: rangeObj,
 
           // WebView 序列化友好字段
           uriString: uriObj.toString(),
           simpleRange: {
-            startLine: bookmark.range.start.line,
-            startCharacter: bookmark.range.start.character,
-            endLine: bookmark.range.end.line,
-            endCharacter: bookmark.range.end.character,
+            startLine: rangeObj.start.line,
+            startCharacter: rangeObj.start.character,
+            endLine: rangeObj.end.line,
+            endCharacter: rangeObj.end.character,
           },
 
           bookmarkNote: bookmark.description,
@@ -126,6 +152,14 @@ export class DataAdapter {
         timestamp: todo.timestamp || Date.now(),
         uri: todo.uri,
         range: todo.range,
+        // WebView 序列化友好字段
+        uriString: todo.uri.toString(),
+        simpleRange: {
+          startLine: todo.range.start.line,
+          startCharacter: todo.range.start.character,
+          endLine: todo.range.end.line,
+          endCharacter: todo.range.end.character,
+        },
         todoType: todo.type,
       }))
 
@@ -171,6 +205,14 @@ export class DataAdapter {
         uri,
         range: symbol.range,
         symbolKind: symbol.kind,
+        // WebView 序列化友好字段
+        uriString: uri.toString(),
+        simpleRange: {
+          startLine: symbol.range.start.line,
+          startCharacter: symbol.range.start.character,
+          endLine: symbol.range.end.line,
+          endCharacter: symbol.range.end.character,
+        },
       })
 
       // 递归处理子符号
@@ -892,36 +934,40 @@ export class DataAdapter {
    * 从BookmarkProvider获取书签数据
    * 这是一个临时方法，理想情况下BookmarkProvider应该暴露这个方法
    */
-  private async getBookmarksFromProvider(): Promise<any[]> {
-    // 这里需要根据实际的BookmarkProvider实现来获取数据
-    // 如果Provider有公共方法可以获取数据，直接调用
-    // 否则可能需要通过反射或修改Provider来暴露数据
+  private async getBookmarksFromProvider(): Promise<SerializedBookmark[]> {
+    // 通过扩展上下文从全局状态读取序列化的书签数据
+    const saved = this.context.globalState.get<SerializedBookmark[]>('CCoding.bookmarks', [])
+    return Array.isArray(saved) ? saved.filter(b => this.isValidSerializedBookmark(b)) : []
+  }
 
-    // 临时实现：假设我们可以从globalState获取数据
-    const context = (this.bookmarkProvider as any).context
-    if (context) {
-      return context.globalState.get('CCoding.bookmarks', [])
-    }
-    return []
+  /**
+   * 校验序列化书签的基本结构
+   */
+  private isValidSerializedBookmark(b: unknown): b is SerializedBookmark {
+    if (!b || typeof b !== 'object')
+      return false
+    const obj = b as Record<string, unknown>
+    if (!obj.id || !obj.label || !obj.uri || !obj.range)
+      return false
+    const r = obj.range as unknown
+    if (r instanceof vscode.Range)
+      return true
+    if (!r || typeof r !== 'object')
+      return false
+    const rr = r as { start?: { line?: unknown, character?: unknown }, end?: { line?: unknown, character?: unknown } }
+    return !!(rr.start && typeof rr.start.line === 'number' && typeof rr.start.character === 'number'
+      && rr.end && typeof rr.end.line === 'number' && typeof rr.end.character === 'number')
   }
 
   /**
    * 从TodoProvider获取TODO数据
    */
-  private async getTodosFromProvider(): Promise<any[]> {
-    // 类似书签，这里需要根据实际实现获取数据
-    // 假设有方法可以获取所有TODO项目
+  private async getTodosFromProvider(): Promise<ScannedTodo[]> {
+    // 目前没有公开方法获取TodoProvider的数据，这里直接扫描当前文档
     try {
-      // 如果TodoProvider有公共方法获取当前文档的TODO
-      if (typeof (this.todoProvider as any).getCurrentTodos === 'function') {
-        return (this.todoProvider as any).getCurrentTodos()
-      }
-
-      // 否则尝试扫描当前文档
       const editor = vscode.window.activeTextEditor
       if (!editor)
         return []
-
       return this.scanTodosInDocument(editor.document)
     }
     catch (error) {
@@ -935,8 +981,8 @@ export class DataAdapter {
   /**
    * 扫描文档中的TODO项目
    */
-  private scanTodosInDocument(document: vscode.TextDocument): any[] {
-    const todos: any[] = []
+  private scanTodosInDocument(document: vscode.TextDocument): ScannedTodo[] {
+    const todos: ScannedTodo[] = []
     console.log(`[DataAdapter] 扫描TODO，文档行数: ${document.lineCount}`)
 
     // 支持多种TODO格式：中英文冒号、可选冒号、数字前缀等
@@ -956,9 +1002,9 @@ export class DataAdapter {
         const [fullMatch, type, text] = match
         const startPos = line.text.indexOf(fullMatch)
 
-        const todoItem = {
+        const todoItem: ScannedTodo = {
           id: `${document.uri.toString()}-${i}-${startPos}`,
-          type: type.toUpperCase(),
+          type: type.toUpperCase() as ScannedTodo['type'],
           text: text.trim(),
           uri: document.uri,
           range: new vscode.Range(
@@ -1059,6 +1105,17 @@ export class DataAdapter {
   }
 
   /**
+   * 将任意范围对象转换为 vscode.Range
+   */
+  private ensureRange(range: vscode.Range | SerializedRange): vscode.Range {
+    if (range instanceof vscode.Range)
+      return range
+    const start = new vscode.Position(range.start.line, range.start.character)
+    const end = new vscode.Position(range.end.line, range.end.character)
+    return new vscode.Range(start, end)
+  }
+
+  /**
    * 获取相对路径
    */
   private getRelativePath(uri: vscode.Uri): string {
@@ -1094,6 +1151,7 @@ export class DataAdapter {
 
       const result = currentFileBookmarks.map((bookmark) => {
         const uriObj = this.ensureUri(bookmark.uri)
+        const rangeObj = this.ensureRange(bookmark.range)
         return {
           id: `bookmark-${bookmark.id}`,
           type: 'bookmark' as const,
@@ -1101,23 +1159,23 @@ export class DataAdapter {
           description: this.truncateText(bookmark.description || '', 50),
           location: {
             file: this.getRelativePath(uriObj),
-            line: bookmark.range.start.line,
-            character: bookmark.range.start.character,
+            line: rangeObj.start.line,
+            character: rangeObj.start.character,
           },
           icon: 'bookmark',
           iconColor: 'charts.blue',
           isPinned: false,
           timestamp: bookmark.timestamp || Date.now(),
           uri: uriObj,
-          range: bookmark.range,
+          range: rangeObj,
 
           // WebView 序列化友好字段
           uriString: uriObj.toString(),
           simpleRange: {
-            startLine: bookmark.range.start.line,
-            startCharacter: bookmark.range.start.character,
-            endLine: bookmark.range.end.line,
-            endCharacter: bookmark.range.end.character,
+            startLine: rangeObj.start.line,
+            startCharacter: rangeObj.start.character,
+            endLine: rangeObj.end.line,
+            endCharacter: rangeObj.end.character,
           },
 
           bookmarkNote: bookmark.description,

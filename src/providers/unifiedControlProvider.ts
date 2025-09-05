@@ -41,10 +41,7 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
             this.onFilterChanged(message.filter)
             this.updateStats()
             break
-          case 'sortChanged':
-            this.currentSort = message.sort
-            this.onSortChanged(message.sort)
-            break
+          // 控制面板仅负责筛选与搜索，排序交由列表视图处理
           case 'search':
             this.onSearchPerformed(message.query)
             break
@@ -58,13 +55,16 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
   /**
    * 更新统计信息
    */
-  public updateStats(stats: { [key: string]: number }): void {
-    this.stats = {
-      total: stats.total || 0,
-      symbols: stats.symbols || 0,
-      bookmarks: stats.bookmarks || 0,
-      todos: stats.todos || 0,
-      // pinned: 0, // Removed
+  public updateStats(stats?: { [key: string]: number }): void {
+    // 允许无参调用，用于仅触发前端刷新当前 stats
+    if (stats) {
+      this.stats = {
+        total: stats.total || 0,
+        symbols: stats.symbols || 0,
+        bookmarks: stats.bookmarks || 0,
+        todos: stats.todos || 0,
+        // pinned: 0, // Removed
+      }
     }
 
     if (this._view) {
@@ -110,12 +110,12 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
             min-height: 60px;
             box-sizing: border-box;
         }
-        
+
         /* 搜索区域 */
         .search-container {
             margin-bottom: 8px;
         }
-        
+
         .search-input-wrapper {
             position: relative;
             display: flex;
@@ -125,12 +125,12 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
             background-color: var(--vscode-input-background);
             transition: border-color 0.2s;
         }
-        
+
         .search-input-wrapper:focus-within {
             border-color: var(--vscode-focusBorder);
             box-shadow: 0 0 0 1px var(--vscode-focusBorder);
         }
-        
+
         .search-input {
             flex: 1;
             padding: 6px 8px;
@@ -140,11 +140,11 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
             font-size: 13px;
             outline: none;
         }
-        
+
         .search-input::placeholder {
             color: var(--vscode-input-placeholderForeground);
         }
-        
+
         .search-clear {
             padding: 4px 6px;
             border: none;
@@ -155,27 +155,27 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
             font-size: 16px;
             line-height: 1;
         }
-        
+
         .search-clear:hover {
             color: var(--vscode-foreground);
         }
-        
+
         .search-clear.show {
             display: block;
         }
-        
+
         /* 筛选按钮区域 */
         .filter-container {
             margin-bottom: 6px;
         }
-        
+
         .filter-buttons {
             display: flex;
             gap: 2px;
             margin-bottom: 6px;
             flex-wrap: wrap;
         }
-        
+
         .filter-button {
             flex: 1;
             min-width: 0;
@@ -195,16 +195,16 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
             overflow: hidden;
             white-space: nowrap;
         }
-        
+
         .filter-button:hover {
             background-color: var(--vscode-button-secondaryHoverBackground);
         }
-        
+
         .filter-button.active {
             background-color: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
         }
-        
+
         .filter-button .count {
             background-color: var(--vscode-activityBarBadge-background);
             color: var(--vscode-activityBarBadge-foreground);
@@ -217,24 +217,24 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
             text-align: center;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
-        
+
         .filter-button.active .count {
             background-color: var(--vscode-badge-background);
             color: var(--vscode-badge-foreground);
             font-weight: 700;
         }
-        
+
         /* 响应式布局 */
         @media (max-width: 250px) {
             .filter-buttons {
                 flex-direction: column;
             }
-            
+
             .filter-button {
                 flex: none;
             }
         }
-        
+
         /* 移除置顶项标识
         .pinned-indicator {
             color: var(--vscode-charts-orange);
@@ -250,7 +250,7 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
             <button class="search-clear" id="searchClear" title="清除搜索">✕</button>
         </div>
     </div>
-    
+
     <div class="filter-container">
         <div class="filter-buttons">
             <button class="filter-button active" data-filter="all" id="filterAll">
@@ -270,31 +270,31 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
 
     <script>
         const vscode = acquireVsCodeApi();
-        
+
         // 元素引用
         const searchInput = document.getElementById('searchInput');
         const searchClear = document.getElementById('searchClear');
-        
+
         // 状态
         let currentFilter = 'all';
         let searchTimeout = null;
-        
+
         // 搜索功能
         searchInput.addEventListener('input', (e) => {
             const query = e.target.value.trim();
-            
+
             // 显示/隐藏清除按钮
             if (query) {
                 searchClear.classList.add('show');
             } else {
                 searchClear.classList.remove('show');
             }
-            
+
             // 防抖搜索
             if (searchTimeout) {
                 clearTimeout(searchTimeout);
             }
-            
+
             searchTimeout = setTimeout(() => {
                 vscode.postMessage({
                     type: 'search',
@@ -302,7 +302,7 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
                 });
             }, 300);
         });
-        
+
         // 清除搜索
         searchClear.addEventListener('click', () => {
             searchInput.value = '';
@@ -312,18 +312,18 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
                 query: ''
             });
         });
-        
+
         // 筛选按钮
         document.querySelectorAll('.filter-button').forEach(button => {
             button.addEventListener('click', (e) => {
                 const filter = e.currentTarget.getAttribute('data-filter');
-                
+
                 // 更新按钮状态
                 document.querySelectorAll('.filter-button').forEach(btn => {
                     btn.classList.remove('active');
                 });
                 e.currentTarget.classList.add('active');
-                
+
                 currentFilter = filter;
                 vscode.postMessage({
                     type: 'filterChanged',
@@ -331,7 +331,7 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
                 });
             });
         });
-        
+
         // 处理扩展消息
         window.addEventListener('message', event => {
             const message = event.data;
@@ -348,7 +348,7 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
                     break;
             }
         });
-        
+
         // 更新统计显示
         function updateStatsDisplay(stats) {
             // 更新计数
@@ -357,11 +357,11 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
             document.getElementById('countBookmarks').textContent = stats.bookmarks || 0;
             document.getElementById('countTodos').textContent = stats.todos || 0;
             // document.getElementById('countPinned').textContent = stats.pinned || 0; // Removed
-            
+
             // 更新筛选按钮状态
             updateFilterButtonStates(stats);
         }
-        
+
         // 更新筛选按钮状态
         function updateFilterButtonStates(stats) {
             const buttons = {
@@ -370,7 +370,7 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
                 'todo': { element: document.getElementById('filterTodo'), count: stats.todos || 0 },
                 // 'pinned': { element: document.getElementById('filterPinned'), count: stats.pinned || 0 } // Removed
             };
-            
+
             Object.keys(buttons).forEach(type => {
                 const { element, count } = buttons[type];
                 if (count === 0) {
@@ -380,7 +380,7 @@ export class UnifiedControlProvider implements vscode.WebviewViewProvider {
                 }
             });
         }
-        
+
         // 初始化
         vscode.postMessage({
             type: 'filterChanged',

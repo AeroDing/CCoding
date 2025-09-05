@@ -1,5 +1,6 @@
 import type {
   BookmarkFilter,
+  BookmarkStatistics,
   EnhancedBookmark,
 } from '../types/bookmarks.js'
 import * as vscode from 'vscode'
@@ -270,7 +271,7 @@ export class EnhancedBookmarkProvider implements vscode.TreeDataProvider<Enhance
   /**
    * 构建统计信息提示
    */
-  private buildStatisticsTooltip(stats: any): string {
+  private buildStatisticsTooltip(stats: BookmarkStatistics): string {
     const lines: string[] = []
 
     lines.push('📊 书签统计信息')

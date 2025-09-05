@@ -28,6 +28,7 @@ export function activate(context: vscode.ExtensionContext) {
       functionListProvider,
       bookmarkProvider,
       todoProvider,
+      context,
     )
 
     // 创建新的5个专业化视图Provider

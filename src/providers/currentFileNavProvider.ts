@@ -23,7 +23,7 @@ export class CurrentFileNavProvider implements vscode.WebviewViewProvider {
     private readonly dataAdapter: DataAdapter,
     private onItemClicked: (item: UnifiedItem) => void,
     private onPinToggled: (item: UnifiedItem) => void,
-  ) {}
+  ) { }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -31,7 +31,6 @@ export class CurrentFileNavProvider implements vscode.WebviewViewProvider {
     _token: vscode.CancellationToken,
   ) {
     this._view = webviewView
-
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [this._extensionUri],

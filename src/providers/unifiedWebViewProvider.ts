@@ -200,12 +200,12 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             box-sizing: border-box;
             overflow-x: hidden;
         }
-        
+
         /* 搜索区域 */
         .search-container {
             margin-bottom: 8px;
         }
-        
+
         .search-input-wrapper {
             position: relative;
             display: flex;
@@ -215,12 +215,12 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             background-color: var(--vscode-input-background);
             transition: border-color 0.2s;
         }
-        
+
         .search-input-wrapper:focus-within {
             border-color: var(--vscode-focusBorder);
             box-shadow: 0 0 0 1px var(--vscode-focusBorder);
         }
-        
+
         .search-input {
             flex: 1;
             padding: 6px 8px;
@@ -230,11 +230,11 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             font-size: 13px;
             outline: none;
         }
-        
+
         .search-input::placeholder {
             color: var(--vscode-input-placeholderForeground);
         }
-        
+
         .search-clear {
             padding: 4px 6px;
             border: none;
@@ -245,27 +245,27 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             font-size: 16px;
             line-height: 1;
         }
-        
+
         .search-clear:hover {
             color: var(--vscode-foreground);
         }
-        
+
         .search-clear.show {
             display: block;
         }
-        
+
         /* 筛选按钮区域 */
         .filter-container {
             margin-bottom: 12px;
         }
-        
+
         .filter-buttons {
             display: flex;
             gap: 2px;
             margin-bottom: 8px;
             flex-wrap: wrap;
         }
-        
+
         .filter-button {
             flex: 1;
             min-width: 0;
@@ -285,16 +285,16 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             overflow: hidden;
             white-space: nowrap;
         }
-        
+
         .filter-button:hover {
             background-color: var(--vscode-button-secondaryHoverBackground);
         }
-        
+
         .filter-button.active {
             background-color: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
         }
-        
+
         .filter-button .count {
             background-color: var(--vscode-activityBarBadge-background);
             color: var(--vscode-activityBarBadge-foreground);
@@ -306,19 +306,19 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             min-width: 18px;
             text-align: center;
         }
-        
+
         .filter-button.active .count {
             background-color: var(--vscode-badge-background);
             color: var(--vscode-badge-foreground);
             font-weight: 700;
         }
-        
+
         /* 列表区域 */
         .items-container {
             flex: 1;
             overflow-y: auto;
         }
-        
+
         .item {
             display: flex;
             align-items: center;
@@ -329,17 +329,17 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             transition: background-color 0.2s;
             min-height: 22px;
         }
-        
+
         .item:hover {
             background-color: var(--vscode-list-hoverBackground);
         }
-        
+
         /* 移除置顶项样式
         .item.pinned {
             background-color: var(--vscode-list-inactiveSelectionBackground);
         }
         */
-        
+
         /* 分组样式 */
         .group-item {
             display: flex;
@@ -352,37 +352,37 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             background-color: var(--vscode-list-hoverBackground);
             border: 1px solid var(--vscode-widget-border);
         }
-        
+
         .group-item:hover {
             background-color: var(--vscode-list-activeSelectionBackground);
         }
-        
+
         .group-item .expand-icon {
             margin-right: 6px;
             font-size: 10px;
             transition: transform 0.2s;
         }
-        
+
         .group-item.expanded .expand-icon {
             transform: rotate(90deg);
         }
-        
+
         .group-children {
             margin-left: 16px;
             border-left: 1px solid var(--vscode-widget-border);
             padding-left: 8px;
             margin-bottom: 4px;
         }
-        
+
         .group-children.collapsed {
             display: none;
         }
-        
+
         .child-item {
             padding: 3px 8px;
             margin-bottom: 1px;
         }
-        
+
         .item-icon {
             flex-shrink: 0;
             width: 16px;
@@ -393,7 +393,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             align-items: center;
             justify-content: center;
         }
-        
+
         .item-content {
             flex: 1;
             min-width: 0;
@@ -401,7 +401,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             flex-direction: column;
             gap: 1px;
         }
-        
+
         .item-label {
             font-size: 13px;
             font-weight: 500;
@@ -409,7 +409,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        
+
         .item-description {
             font-size: 11px;
             color: var(--vscode-descriptionForeground);
@@ -417,7 +417,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        
+
         .item-actions {
             flex-shrink: 0;
             display: flex;
@@ -425,11 +425,11 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             opacity: 0;
             transition: opacity 0.2s;
         }
-        
+
         .item:hover .item-actions {
             opacity: 1;
         }
-        
+
         .action-button {
             padding: 2px 4px;
             border: none;
@@ -440,18 +440,18 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             font-size: 12px;
             line-height: 1;
         }
-        
+
         .action-button:hover {
             background-color: var(--vscode-toolbar-hoverBackground);
         }
-        
+
         .empty-message {
             text-align: center;
             color: var(--vscode-descriptionForeground);
             padding: 20px;
             font-size: 13px;
         }
-        
+
         /* 图标样式 */
         .icon-symbol-method { color: #B180D7; }
         .icon-symbol-class { color: #EE9D28; }
@@ -463,7 +463,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
         .icon-bug { color: #F14C4C; }
         .icon-hack { color: #FFCC02; }
         .icon-pinned { color: #FF8C00; }
-        
+
         /* 置顶指示器 */
         .pinned-indicator {
             color: var(--vscode-charts-orange);
@@ -479,7 +479,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             <button class="search-clear" id="searchClear" title="清除搜索">✕</button>
         </div>
     </div>
-    
+
     <div class="filter-container">
         <div class="filter-buttons">
             <button class="filter-button active" data-filter="all" id="filterAll">
@@ -496,40 +496,40 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             </button>
         </div>
     </div>
-    
+
     <div class="items-container" id="itemsContainer">
         <div class="empty-message">正在加载...</div>
     </div>
 
     <script>
         const vscode = acquireVsCodeApi();
-        
+
         // 元素引用
         const searchInput = document.getElementById('searchInput');
         const searchClear = document.getElementById('searchClear');
         const itemsContainer = document.getElementById('itemsContainer');
-        
+
         // 状态
         let currentFilter = 'all';
         let searchTimeout = null;
         let currentItems = [];
-        
+
         // 搜索功能
         searchInput.addEventListener('input', (e) => {
             const query = e.target.value.trim();
-            
+
             // 显示/隐藏清除按钮
             if (query) {
                 searchClear.classList.add('show');
             } else {
                 searchClear.classList.remove('show');
             }
-            
+
             // 防抖搜索
             if (searchTimeout) {
                 clearTimeout(searchTimeout);
             }
-            
+
             searchTimeout = setTimeout(() => {
                 vscode.postMessage({
                     type: 'search',
@@ -537,7 +537,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                 });
             }, 300);
         });
-        
+
         // 清除搜索
         searchClear.addEventListener('click', () => {
             searchInput.value = '';
@@ -547,18 +547,18 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                 query: ''
             });
         });
-        
+
         // 筛选按钮
         document.querySelectorAll('.filter-button').forEach(button => {
             button.addEventListener('click', (e) => {
                 const filter = e.currentTarget.getAttribute('data-filter');
-                
+
                 // 更新按钮状态
                 document.querySelectorAll('.filter-button').forEach(btn => {
                     btn.classList.remove('active');
                 });
                 e.currentTarget.classList.add('active');
-                
+
                 currentFilter = filter;
                 vscode.postMessage({
                     type: 'filterChanged',
@@ -566,7 +566,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                 });
             });
         });
-        
+
         // 处理扩展消息
         window.addEventListener('message', event => {
             console.log('[WebView] Received message:', event.data);
@@ -592,7 +592,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                     console.log('[WebView] Unknown message type:', message.type);
             }
         });
-        
+
         // 更新统计显示
         function updateStatsDisplay(stats) {
             document.getElementById('countAll').textContent = stats.total || 0;
@@ -600,7 +600,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             document.getElementById('countBookmarks').textContent = stats.bookmarks || 0;
             document.getElementById('countTodos').textContent = stats.todos || 0;
             // document.getElementById('countPinned').textContent = stats.pinned || 0; // Removed
-            
+
             // 更新筛选按钮状态
             const buttons = {
                 'symbol': { element: document.getElementById('filterSymbol'), count: stats.symbols || 0 },
@@ -608,7 +608,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                 'todo': { element: document.getElementById('filterTodo'), count: stats.todos || 0 },
                 // 'pinned': { element: document.getElementById('filterPinned'), count: stats.pinned || 0 } // Removed
             };
-            
+
             Object.keys(buttons).forEach(type => {
                 const { element, count } = buttons[type];
                 if (count === 0) {
@@ -618,59 +618,59 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                 }
             });
         }
-        
+
         // 更新项目列表
         function updateItemsList(items) {
             console.log('[WebView] updateItemsList called with:', items);
             console.log('[WebView] Items length:', items?.length);
-            
+
             if (!items || items.length === 0) {
                 console.log('[WebView] No items, showing empty message');
                 itemsContainer.innerHTML = '<div class="empty-message">没有找到匹配的项目</div>';
                 return;
             }
-            
+
             console.log('[WebView] Creating HTML for', items.length, 'items');
             try {
                 const htmlContent = items.map(item => {
                     console.log('[WebView] Processing item:', item.label, 'type:', item.type, 'isGroup:', item.isGroup);
                     return createItemHtml(item);
                 }).join('');
-                
+
                 console.log('[WebView] Setting innerHTML');
                 itemsContainer.innerHTML = htmlContent;
                 console.log('[WebView] HTML content set successfully');
-                
+
                 // 绑定点击事件
                 bindItemEvents();
-                
+
                 console.log('[WebView] Event binding completed');
             } catch (error) {
                 console.error('[WebView] Error in updateItemsList:', error);
                 itemsContainer.innerHTML = '<div class="empty-message">显示项目时出错</div>';
             }
         }
-        
+
         // 绑定项目事件
         function bindItemEvents() {
             // 绑定分组展开/折叠事件
             const groupItems = itemsContainer.querySelectorAll('.group-item');
             groupItems.forEach(groupEl => {
                 const groupId = groupEl.getAttribute('data-group-id');
-                
+
                 groupEl.addEventListener('click', (e) => {
                     e.stopPropagation();
                     toggleGroup(groupId);
                 });
             });
-            
+
             // 绑定子项点击事件
             const itemElements = itemsContainer.querySelectorAll('.item:not(.group-item)');
             console.log('[WebView] Found', itemElements.length, 'item elements for event binding');
-            
+
             itemElements.forEach(itemEl => {
                 const itemId = itemEl.getAttribute('data-item-id');
-                
+
                 itemEl.addEventListener('click', (e) => {
                     if (e.target.classList.contains('action-button')) return;
                     console.log('[WebView] Item clicked:', itemId);
@@ -679,7 +679,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                         itemId: itemId
                     });
                 });
-                
+
                 // 移除置顶按钮事件监听
                 // const pinButton = itemEl.querySelector('.pin-button');
                 // if (pinButton) {
@@ -694,15 +694,15 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                 // }
             });
         }
-        
+
         // 切换分组展开/折叠状态
         function toggleGroup(groupId) {
             const groupElement = document.querySelector(\`[data-group-id="\${groupId}"]\`);
             const childrenElement = document.querySelector(\`[data-group-children="\${groupId}"]\`);
-            
+
             if (groupElement && childrenElement) {
                 const isExpanded = !childrenElement.classList.contains('collapsed');
-                
+
                 if (isExpanded) {
                     // 折叠
                     childrenElement.classList.add('collapsed');
@@ -712,25 +712,25 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                     childrenElement.classList.remove('collapsed');
                     groupElement.classList.add('expanded');
                 }
-                
+
                 console.log('[WebView] Toggled group', groupId, 'expanded:', !isExpanded);
             }
         }
-        
+
         // 创建项目HTML
         function createItemHtml(item) {
             // 如果是分组项目
             if (item.isGroup && item.children) {
                 return createGroupHtml(item);
             }
-            
+
             // 普通项目
             const iconClass = getIconClass(item);
             // 移除置顶按钮
-            // const pinButton = item.isPinned ? 
+            // const pinButton = item.isPinned ?
             //     '<button class="action-button pin-button" title="取消置顶">📌</button>' :
             //     '<button class="action-button pin-button" title="置顶">📌</button>';
-            
+
             return \`
                 <div class="item" data-item-id="\${item.id}"> <!-- Removed pinned class -->
                     <div class="item-icon \${iconClass}">
@@ -743,12 +743,12 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                         </div>
                     </div>
                     <div class="item-actions">
-                        <!-- ${pinButton} Removed -->
+                        <!-- pin button removed -->
                     </div>
                 </div>
             \`;
         }
-        
+
         // 创建分组HTML
         function createGroupHtml(group) {
             const groupId = group.id;
@@ -758,7 +758,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                     \${createItemHtml(child)}
                 </div>
             \`).join('') : '';
-            
+
             return \`
                 <div class="group-item \${isExpanded ? 'expanded' : ''}" data-group-id="\${groupId}">
                     <span class="expand-icon">▶</span>
@@ -775,7 +775,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                 </div>
             \`;
         }
-        
+
         // 获取分组图标符号
         function getGroupIconSymbol(groupName) {
             const iconMap = {
@@ -796,12 +796,12 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             };
             return iconMap[groupName] || '📁';
         }
-        
+
         // 获取图标类名
         function getIconClass(item) {
             // 移除置顶判断
             // if (item.isPinned) return 'icon-pinned';
-            
+
             switch (item.type) {
                 case 'symbol':
                     // symbolKind 是数字，需要转换为字符串
@@ -815,12 +815,12 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                     return '';
             }
         }
-        
+
         // 将 VSCode SymbolKind 数字转换为字符串
         function getSymbolKindString(symbolKind) {
             const kindMap = {
                 1: 'file',
-                2: 'module', 
+                2: 'module',
                 3: 'namespace',
                 4: 'package',
                 5: 'class',
@@ -848,11 +848,11 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
             };
             return kindMap[symbolKind] || 'misc';
         }
-        
+
         // 获取图标符号
         function getIconSymbol(item) {
             if (item.isPinned) return '📌';
-            
+
             switch (item.type) {
                 case 'symbol':
                     const kindMap = {
@@ -881,7 +881,7 @@ export class UnifiedWebViewProvider implements vscode.WebviewViewProvider {
                     return '○';
             }
         }
-        
+
         // HTML转义
         function escapeHtml(text) {
             const div = document.createElement('div');

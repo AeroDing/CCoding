@@ -30,12 +30,34 @@ interface FunctionDetails {
   complexity?: number
   frameworkType?: 'react' | 'vue' | 'general'
   additionalInfo?: {
+    // 通用/React Hook 信息
     hookType?: string
     dependencies?: string[]
-    isComputed?: boolean
+    isHook?: boolean
     isAsync?: boolean
+
+    // 生命周期/阶段信息（Vue/React 通用）
+    isLifecycle?: boolean
     lifecyclePhase?: string
+
+    // React 组件信息
+    isComponent?: boolean
     componentType?: 'functional' | 'class'
+    props?: { name: string, type?: string, required?: boolean, defaultValue?: string }[]
+
+    // Vue 计算属性/方法/数据/Prop 信息
+    isComputed?: boolean
+    hasGetter?: boolean
+    hasSetter?: boolean
+    isMethod?: boolean
+    params?: string[]
+    isData?: boolean
+    type?: string
+    isProp?: boolean
+    required?: boolean
+    default?: string
+
+    // HTML/CSS 相关信息
     htmlTag?: string
     cssProperty?: string
     selector?: string
